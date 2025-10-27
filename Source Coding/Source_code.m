@@ -328,13 +328,13 @@ function print_symbols_dic(dict_input, H)
 end
 
 %% -------------------------------------------------------------------------
-%               Print Coded Dictionary Function
+%               Print Coded Dictionary Function (with Kraft Tree)
 % -------------------------------------------------------------------------
 function print_coded_dict(dict, H)
-% PRINT_CODED_DICT  Display Huffman dictionary with entropy, avg length, and efficiency
+% PRINT_CODED_DICT  Display Huffman dictionary with entropy, avg length, efficiency, and Kraft tree.
 %
 %   print_coded_dict(dict, H)
-% 
+%
 %   Inputs:
 %       dict - cell array {symbol, probability, code}
 %       H    - entropy (bits/symbol)
@@ -342,7 +342,8 @@ function print_coded_dict(dict, H)
 %   This function:
 %       • Calculates average length L(C)
 %       • Calculates efficiency η = (H / L) * 100%
-%       • Displays results in a styled MATLAB UI table and console output
+%       • Checks Kraft’s inequality and plots the Kraft tree
+%       • Displays all results in MATLAB UI + console
 
     % === Validate input ===
     if nargin < 1 || isempty(dict)
@@ -355,16 +356,6 @@ function print_coded_dict(dict, H)
         return;
     end
     
-    [ok, msg] = check_symbols(dict);
-    
-    % Display validation result
-    if ok
-        
-    else
-        disp(['❌ Error: ' msg]);
-        return;
-    end
-
     % === Extract data ===
     symbols = cellfun(@char, dict(:,1), 'UniformOutput', false);
     P       = cell2mat(dict(:,2));
@@ -373,7 +364,7 @@ function print_coded_dict(dict, H)
     % === Compute metrics ===
     L   = average_length_calc(dict);
     eta = efficiency_calc(H, L);
-    [kraft_sum, kraft_flag] = kraft_analysis(dict)
+    [kraft_sum, kraft_flag] = kraft_analysis(dict); 
 
     % === Print to Command Window ===
     fprintf('\n--- Final Huffman Coding Results ---\n');
@@ -386,12 +377,20 @@ function print_coded_dict(dict, H)
     fprintf('Entropy (H):           %.4f bits/symbol\n', H);
     fprintf('Average length (L):    %.4f bits/symbol\n', L);
     fprintf('Efficiency (η):        %.2f %%\n', eta);
+    fprintf('Kraft Sum:             %.4f\n', kraft_sum);
+    if kraft_flag == 2
+        fprintf('Kraft Result: ✅ Complete Prefix Code\n');
+    elseif kraft_flag == 1
+        fprintf('Kraft Result: ⚠ Valid but Not Complete\n');
+    else
+        fprintf('Kraft Result: ❌ Invalid Code\n');
+    end
 
     % === UI Figure ===
     f = uifigure('Name','Huffman Dictionary Summary', ...
                  'NumberTitle','off', ...
                  'Color','w', ...
-                 'Position',[500 300 480 420]);
+                 'Position',[500 200 480 450]);
 
     gl = uigridlayout(f,[3 1]);
     gl.RowHeight = {'fit', '1x', 'fit'};
@@ -415,15 +414,15 @@ function print_coded_dict(dict, H)
 
     % --- Summary Labels ---
     uilabel(gl, ...
-        'Text', sprintf('H = %.4f | L = %.4f | η = %.2f %%', H, L, eta), ...
+        'Text', sprintf('H = %.4f | L = %.4f | η = %.2f %% | Kraft = %.4f', H, L, eta, kraft_sum), ...
         'FontSize',12, ...
         'FontWeight','bold', ...
         'FontColor',[0 0.3 0.7], ...
         'HorizontalAlignment','center');
-    
-   
-    
+
 end
+
+
 
 %% -------------------------------------------------------------------------
 %               Print Kraft Inequality Function
