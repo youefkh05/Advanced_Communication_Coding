@@ -4,12 +4,21 @@
 
 clc; clear; close all;
 
-% Given probabilities
+% Given Symbols probabilities
 symbols = {'A','B','C','D','E','F','G'};
 P = [0.35 0.30 0.20 0.10 0.04 0.005 0.005];
 
-dict_input = create_dictionary(symbols, P);
+% Create Input Dictionary
+[dict_input,err_flag, H] = create_symbols_dictionary(symbols, P);
 
+% Check Input
+if err_flag ==1
+    disp('⚠ Stopping execution due to invalid dictionary.');
+    return; % exits the current script or function
+end
+
+% Print the dictionary neatly
+print_symbols_dic(dict_input, H);
 
 % Generate built-in Huffman dictionary (for verification)
 [dict_builtin, avglen] = huffmandict(symbols, P);
@@ -48,10 +57,10 @@ disp(dict_manual);
 % -------------------------------------------------------------------------
 
 
-% -------------------------------------------------------------------------
+%% -------------------------------------------------------------------------
 %              Create Dictionary Input Definition
 % -------------------------------------------------------------------------
-function dict_input = create_dictionary(symbols, P)
+function [dict_input,err_flag, H] = create_symbols_dictionary(symbols, P)
 %CREATE_DICTIONARY  Combines symbols and probabilities into a validated dictionary.
 %
 %   dict_input = create_dictionary(symbols, P)
@@ -70,6 +79,9 @@ function dict_input = create_dictionary(symbols, P)
 
     % Combine into dictionary-like cell array
     dict_input = [symbols(:), num2cell(P(:))];
+    
+    % Assume not great until great 
+    err_flag = 1;
 
     % Validate using the check_symbols() function
     [ok, msg] = check_symbols(dict_input);
@@ -77,17 +89,22 @@ function dict_input = create_dictionary(symbols, P)
     % Display validation result
     if ok
         disp('✅ Dictionary is valid!');
+        err_flag =0;
     else
         disp(['❌ Error: ' msg]);
+        err_flag = 1;
     end
 
-    % Display dictionary
-    disp('--- Input Symbol Dictionary ---');
-    disp(dict_input);
+    % ---------------------------------------------------------------------
+    % Compute entropy (only if valid)
+    % ---------------------------------------------------------------------
+    P = cell2mat(dict_input(:, 2)); % extract probabilities
+    H = -sum(P .* log2(P));         % Shannon entropy in bits/symbol
+    
 end
 
 
-% -------------------------------------------------------------------------
+%% -------------------------------------------------------------------------
 %               Check Input Validation Function
 % -------------------------------------------------------------------------
 function [isValid, errMsg] = check_symbols(dict_input)
@@ -139,7 +156,76 @@ function [isValid, errMsg] = check_symbols(dict_input)
 end
 
 
+%% -------------------------------------------------------------------------
+%               Print Dictionary Function
 % -------------------------------------------------------------------------
+function print_symbols_dic(dict_input, H)
+% PRINT_SYMBOLS_DIC  Displays a formatted version of the symbol dictionary in a figure,
+%                    and shows the calculated source entropy.
+%
+%   print_symbols_dic(dict_input, H)
+%
+%   Inputs:
+%       dict_input - cell array {symbol, probability}
+%       H          - source entropy (bits/symbol)
+
+    % Validate input
+    if nargin < 1 || isempty(dict_input)
+        error('Input dictionary is empty or missing.');
+    end
+
+    % Convert symbols to char (uitable can't handle string objects)
+    symbols = cellfun(@char, dict_input(:,1), 'UniformOutput', false);
+    probs = cell2mat(dict_input(:,2));
+
+    % Display result in Command Window
+    fprintf('\nInformation Source Entropy: H = %.4f bits/symbol\n', H);
+    fprintf('-----------------------------------------------------\n');
+
+    % Create a responsive UI figure
+    f = uifigure('Name', 'Symbol Dictionary', ...
+                 'NumberTitle', 'off', ...
+                 'Color', 'w', ...
+                 'Position', [500 400 350 320]);
+
+    % Format probabilities as strings
+    probStr = arrayfun(@(p) sprintf('%.4f', p), probs, 'UniformOutput', false);
+
+    % Combine into table data
+    data = [symbols probStr];
+
+    % Create a grid layout (auto-resizes)
+    gl = uigridlayout(f, [3,1]);
+    gl.RowHeight = {'fit', '1x', 'fit'};  % title, table, entropy
+    gl.ColumnWidth = {'1x'};
+    gl.Padding = [10 10 10 10];
+
+    % --- Title ---
+    uilabel(gl, ...
+        'Text', '--- Input Symbol Dictionary ---', ...
+        'FontSize', 14, ...
+        'FontWeight', 'bold', ...
+        'HorizontalAlignment', 'center');
+
+    % --- Table ---
+    uitable(gl, ...
+        'Data', data, ...
+        'ColumnName', {'Symbol', 'Probability'}, ...
+        'FontSize', 12, ...
+        'ColumnWidth', {'1x', '1x'}, ...
+        'RowStriping', 'on');
+
+    % --- Entropy Display ---
+    uilabel(gl, ...
+        'Text', sprintf('Entropy: H = %.4f bits/symbol', H), ...
+        'FontSize', 12, ...
+        'FontWeight', 'bold', ...
+        'FontColor', [0 0.3 0.7], ...
+        'HorizontalAlignment', 'center');
+end
+
+
+%% -------------------------------------------------------------------------
 %               Huffman Encoding Function
 % -------------------------------------------------------------------------
 function dict_out = huffman_encoding(symbols, probabilities)
