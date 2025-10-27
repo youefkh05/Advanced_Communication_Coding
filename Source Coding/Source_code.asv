@@ -1,4 +1,4 @@
-%------------------------------------------------------------ 
+%%------------------------------------------------------------ 
 % Problem 1: Binary Huffman Coding 
 %------------------------------------------------------------ 
 
@@ -30,10 +30,10 @@ disp('--- Manual Huffman Encoding ---');
 disp(dict_huffman);
 
 % Print the codded dictionary neatly
-print_coded_dict(dict_huffman, H)
+print_coded_dict(dict_huffman, H);
 
 
-%------------------------------------------------------------ 
+%%------------------------------------------------------------ 
 % Problem 2: Binary Fano  Coding 
 %------------------------------------------------------------ 
  
@@ -43,7 +43,30 @@ print_coded_dict(dict_huffman, H)
 input 
 بتاعكوا
 dict_input
+
+ال
+funtions 
+H
+L
+eta
+دول جاهزين ليكوا
+
+اللي عليكوا تعملوه  هو 
+
 %}
+
+% -------------------------------------------------------------------------
+% Manual Fano Coding (with custom output)
+% -------------------------------------------------------------------------
+dict_Fano  = Fano_encoding_visual(dict_input);
+
+disp('--- Manual Fano Encoding ---');
+disp(dict_Fano);
+
+% Print the codded dictionary neatly
+print_coded_dict(dict_Fano, H);
+
+
 
 %%  
 % -------------------------------------------------------------------------
@@ -249,6 +272,7 @@ function print_symbols_dic(dict_input, H)
     % Validate input
     if nargin < 1 || isempty(dict_input)
         error('Input dictionary is empty or missing.');
+        return;
     end
 
     % Convert symbols to char (uitable can't handle string objects)
@@ -321,10 +345,22 @@ function print_coded_dict(dict, H)
     % === Validate input ===
     if nargin < 1 || isempty(dict)
         error('Input Huffman dictionary is missing or empty.');
+        return;
     end
 
     if size(dict,2) < 3
         error('Dictionary must have 3 columns: {symbol, probability, code}.');
+        return;
+    end
+    
+    [ok, msg] = check_symbols(dict);
+    
+    % Display validation result
+    if ok
+        
+    else
+        disp(['❌ Error: ' msg]);
+        
     end
 
     % === Extract data ===
@@ -686,8 +722,16 @@ function history_table_full = assign_coding(history_table)
 
     end 
 end 
-%%
 
+
+%% ------------------------------------------------------------------------- 
+%               Fano Encoding with Visualization Function  
+% ------------------------------------------------------------------------- 
+function dict = Fano_encoding_visual(dict_input)
+%{هنا شغلكوا
+%} 
+    dict = [];
+end
 
 
 
