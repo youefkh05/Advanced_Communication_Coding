@@ -294,6 +294,9 @@ end
 %% -------------------------------------------------------------------------
 %               Huffman Encoding with Visualization Function 
 % -------------------------------------------------------------------------
+%% ------------------------------------------------------------------------- 
+%               Huffman Encoding with Visualization Function  
+% ------------------------------------------------------------------------- 
 function dict = huffman_encoding_visual(symbols, P)
 %HUFFMAN_ENCODING_VISUAL Visual Huffman encoding with full table output
 %
@@ -309,12 +312,46 @@ function dict = huffman_encoding_visual(symbols, P)
         error('Symbols and probabilities must have same length.');
     end
 
-    % Normalize probabilities
+    % === Normalize probabilities ===
     P = P(:);
     P = P / sum(P);
+
+    % === Step 1: Generate merging history ===
     history_table = merge_probabilities(P);
-    history_table = assign_coding(history_table)
-    
+
+    % === Step 2: Assign Huffman codes through backward propagation ===
+    history_table_full = assign_coding(history_table);
+
+    % === Step 3: Visualization ===
+    fprintf('\n================ Huffman Encoding Visualization ================\n');
+    fprintf('--- Probability Merge History ---\n');
+    disp(history_table);
+
+    fprintf('\n--- Probability & Code Propagation Table ---\n');
+    disp(history_table_full);
+
+    % === Step 4: Extract Final Codes for Each Symbol ===
+    % The first probability column and its corresponding code column
+    firstPcol = 1;
+    firstCcol = 2;
+
+    % Get codes for non-NaN probabilities
+    codes = history_table_full(:, firstCcol);
+    probs = cell2mat(history_table_full(:, firstPcol));
+
+    validIdx = ~isnan(probs);
+    codes = codes(validIdx);
+    symbols = symbols(validIdx);
+
+    % Ensure everything is in same order
+    dict = containers.Map(symbols, codes);
+
+    % === Step 5: Display final dictionary ===
+    fprintf('\n--- Final Huffman Dictionary ---\n');
+    for i = 1:length(symbols)
+        fprintf('  %-5s : %s\n', symbols{i}, codes{i});
+    end
+    fprintf('=================================================================\n\n');
 end
 
 % === Probability Merge helper function  ===
