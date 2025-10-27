@@ -29,14 +29,20 @@ dict_huffman = huffman_encoding_visual(dict_input);
 disp('--- Manual Huffman Encoding ---');
 disp(dict_huffman);
 
-%{
-% Compute entropy and efficiency
-H = -sum(P .* log2(P));
-eff = (H / avglen) * 100;
+% Print the codded dictionary neatly
+print_coded_dict(dict_huffman, H)
 
-fprintf('\nEntropy (H) = %.4f bits/symbol\n', H);
-fprintf('Average code length (L) = %.4f bits/symbol\n', avglen);
-fprintf('Coding Efficiency = %.2f%%\n', eff);
+
+%------------------------------------------------------------ 
+% Problem 2: Binary Fano  Coding 
+%------------------------------------------------------------ 
+ 
+%{
+الجزء بتاعكوا يا رجالة
+استخدموا ده لل
+input 
+بتاعكوا
+dict_input
 %}
 
 %%  
@@ -65,6 +71,49 @@ function H = entropy_calc(P)
 
     % Compute entropy
     H = -sum(P .* log2(P));
+end
+
+%% -------------------------------------------------------------------------
+%              Average Length Calculation 
+% -------------------------------------------------------------------------
+
+function L = average_length_calc(dict)
+%AVERAGE_LENGTH_CALC Compute average codeword length L(C)
+%   L = average_length_calc(dict, P)
+%   dict : Huffman dictionary cell array {symbol, code}
+%   P : vector of symbol probabilities (same order as dict)
+%
+%   If P is empty, it tries to extract from dict(:,2) if present
+%   L : average code length
+    
+    P = dict(:,2);
+    % --- Handle inputs ---
+    if nargin < 2 || isempty(P)
+        % Check if dict has a probability column (3 columns)
+        if size(dict, 2) >= 3 && isnumeric(dict{1,2})
+            P = cell2mat(dict(:,2));
+            codes = dict(:,3);
+        else
+            error('Probability vector P is required or must be in dict(:,2)');
+        end
+    else
+        % Extract codes (assumed in 2nd column)
+        codes = dict(:,3);
+    end
+
+    % --- Compute code lengths ---
+    code_lengths = cellfun(@length, codes);
+
+    % --- Normalize probabilities ---
+    P = P(:) / sum(P);
+
+    % --- Check dimensions ---
+    if length(P) ~= length(code_lengths)
+        error('Number of probabilities does not match number of codewords.');
+    end
+
+    % --- Compute average code length ---
+    L = sum(P .* code_lengths);
 end
 
 %% -------------------------------------------------------------------------
@@ -252,6 +301,88 @@ function print_symbols_dic(dict_input, H)
         'HorizontalAlignment', 'center');
 end
 
+%% -------------------------------------------------------------------------
+%               Print Huffman Coded Dictionary Function
+% -------------------------------------------------------------------------
+function print_coded_dict(dict, H)
+% PRINT_CODED_DICT  Display Huffman dictionary with entropy, avg length, and efficiency
+%
+%   print_coded_dict(dict, H)
+% 
+%   Inputs:
+%       dict - cell array {symbol, probability, code}
+%       H    - entropy (bits/symbol)
+%
+%   This function:
+%       • Calculates average length L(C)
+%       • Calculates efficiency η = (H / L) * 100%
+%       • Displays results in a styled MATLAB UI table and console output
+
+    % === Validate input ===
+    if nargin < 1 || isempty(dict)
+        error('Input Huffman dictionary is missing or empty.');
+    end
+
+    if size(dict,2) < 3
+        error('Dictionary must have 3 columns: {symbol, probability, code}.');
+    end
+
+    % === Extract data ===
+    symbols = cellfun(@char, dict(:,1), 'UniformOutput', false);
+    P       = cell2mat(dict(:,2));
+    codes   = dict(:,3);
+
+    % === Compute metrics ===
+    L   = average_length_calc(dict);
+    eta = efficiency_calc(H, L);
+
+    % === Print to Command Window ===
+    fprintf('\n--- Final Huffman Coding Results ---\n');
+    fprintf('Symbol\tProb.\t\tCode\n');
+    fprintf('-----------------------------------------\n');
+    for i = 1:length(symbols)
+        fprintf('%s\t%.4f\t\t%s\n', symbols{i}, P(i), codes{i});
+    end
+    fprintf('-----------------------------------------\n');
+    fprintf('Entropy (H):           %.4f bits/symbol\n', H);
+    fprintf('Average length (L):    %.4f bits/symbol\n', L);
+    fprintf('Efficiency (η):        %.2f %%\n', eta);
+
+    % === UI Figure ===
+    f = uifigure('Name','Huffman Dictionary Summary', ...
+                 'NumberTitle','off', ...
+                 'Color','w', ...
+                 'Position',[500 300 480 420]);
+
+    gl = uigridlayout(f,[3 1]);
+    gl.RowHeight = {'fit', '1x', 'fit'};
+    gl.Padding = [10 10 10 10];
+
+    % --- Title ---
+    uilabel(gl, ...
+        'Text','--- Huffman Coded Dictionary ---', ...
+        'FontSize',14, ...
+        'FontWeight','bold', ...
+        'HorizontalAlignment','center');
+
+    % --- Table ---
+    data = [symbols, arrayfun(@(p) sprintf('%.4f',p), P,'UniformOutput',false), codes];
+    uitable(gl, ...
+        'Data',data, ...
+        'ColumnName',{'Symbol','Probability','Code'}, ...
+        'FontSize',12, ...
+        'RowStriping','on', ...
+        'ColumnWidth',{'1x','1x','1x'});
+
+    % --- Summary Labels ---
+    uilabel(gl, ...
+        'Text', sprintf('H = %.4f | L = %.4f | η = %.2f %%', H, L, eta), ...
+        'FontSize',12, ...
+        'FontWeight','bold', ...
+        'FontColor',[0 0.3 0.7], ...
+        'HorizontalAlignment','center');
+end
+
 
 %% ------------------------------------------------------------------------- 
 %               Huffman Encoding with Visualization Function  
@@ -341,6 +472,17 @@ function dict = huffman_encoding_visual(dict_input)
         'BackgroundColor',[1 1 1; 0.95 0.95 1]);
 
     % === Step 5: Extract Final Huffman Dictionary ===
+    
+    % Make a copy
+    dict = dict_input;
+    
+    % Ensure dict has at least 3 columns
+    if size(dict,2) < 3
+        dict(:,end+1:3) = {[]}; 
+    end
+    dict(:,3)=history_table_full(:,2);
+    
+    % === Step 6: Console Output ===
     firstPcol = 1;
     firstCcol = 2;
 
@@ -351,10 +493,7 @@ function dict = huffman_encoding_visual(dict_input)
     symbols = symbols(validIdx);
     codes = codes(validIdx);
     probs = probs(validIdx);
-
-    dict = containers.Map(symbols, codes);
-
-    % === Step 6: Console Output ===
+    
     fprintf('\n--- Final Huffman Codes ---\n');
     for i = 1:length(symbols)
         fprintf('Symbol %s (%.4f): %s\n', symbols{i}, probs(i), codes{i});
