@@ -17,21 +17,18 @@ if err_flag ==1
     return; % exits the current script or function
 end
 
-% Generate built-in Huffman dictionary (for verification)
-[dict_builtin, avglen] = huffmandict(symbols, P);
-
-disp('--- Built-in Huffman Codes ---');
-for i = 1:length(symbols)
-    code = dict_builtin{i,2};
-    % Fix nested cell issue (handle {[0 1]} or {0 1} cases)
-    if iscell(code)
-        code = cell2mat(code);
-    end
-    fprintf('%s : %s\n', symbols{i}, num2str(code));
-end
-
 % Print the dictionary neatly
 print_symbols_dic(dict_input, H);
+
+
+% -------------------------------------------------------------------------
+% Manual Huffman Coding (with custom output)
+% -------------------------------------------------------------------------
+dict_huffman = huffman_encoding_visual(dict_input);
+
+disp('--- Manual Huffman Encoding ---');
+disp(dict_huffman);
+
 %{
 % Compute entropy and efficiency
 H = -sum(P .* log2(P));
@@ -42,19 +39,51 @@ fprintf('Average code length (L) = %.4f bits/symbol\n', avglen);
 fprintf('Coding Efficiency = %.2f%%\n', eff);
 %}
 
-
-% -------------------------------------------------------------------------
-% Manual Huffman Coding (with custom output)
-% -------------------------------------------------------------------------
-dict_manual = huffman_encoding_visual(symbols, P);
-
-disp('--- Manual Huffman Encoding ---');
-disp(dict_manual);
-
 %%  
 % -------------------------------------------------------------------------
 %              Function Definition
 % -------------------------------------------------------------------------
+
+%% -------------------------------------------------------------------------
+%              Entropy Calculation 
+% -------------------------------------------------------------------------
+
+function H = entropy_calc(P)
+%ENTROPY_CALC Compute the source entropy H(P(x))
+%   H = entropy_calc(P)
+%   P : vector of symbol probabilities
+%   H : entropy in bits
+
+    % Validate input
+    if any(P < 0) || abs(sum(P) - 1) > 1e-6
+        warning('Probabilities should sum to 1. Normalizing...');
+        P = P / sum(P);
+    end
+
+    % Remove zeros (to avoid log2(0))
+    P = P(P > 0);
+
+    % Compute entropy
+    H = -sum(P .* log2(P));
+end
+
+%% -------------------------------------------------------------------------
+%              Efficiency Calculation
+% -------------------------------------------------------------------------
+
+function eta = efficiency_calc(H, L)
+%EFFICIENCY_CALC Compute Huffman coding efficiency η
+%   eta = efficiency_calc(H, L)
+%   H : entropy
+%   L : average code length
+%   eta : efficiency in percentage (%)
+
+    if L <= 0
+        error('Average length L must be positive.');
+    end
+
+    eta = (H / L) * 100;
+end
 
 
 %% -------------------------------------------------------------------------
@@ -98,8 +127,7 @@ function [dict_input,err_flag, H] = create_symbols_dictionary(symbols, P)
     % ---------------------------------------------------------------------
     % Compute entropy (only if valid)
     % ---------------------------------------------------------------------
-    P = cell2mat(dict_input(:, 2)); % extract probabilities
-    H = -sum(P .* log2(P));         % Shannon entropy in bits/symbol
+    H = entropy_calc(P)
     
 end
 
@@ -225,88 +253,23 @@ function print_symbols_dic(dict_input, H)
 end
 
 
-%% -------------------------------------------------------------------------
-%               Huffman Encoding Function
-% -------------------------------------------------------------------------
-function dict_out = huffman_encoding(symbols, probabilities)
-    
-    N = length(probabilities);
-    
-    % Create cell array for nodes (avoid struct array conflict)
-    nodes = cell(N,1);
-    for i = 1:N
-        nodes{i} = struct('Prob', probabilities(i), ...
-                          'Symbol', symbols{i}, ...
-                          'Children', []);
-    end
-
-    % --- Build Huffman Tree ---
-    while numel(nodes) > 1
-        % Sort by ascending probability
-        [~, idx] = sort(cellfun(@(x)x.Prob, nodes));
-        nodes = nodes(idx);
-
-        % Take two smallest
-        left = nodes{1};
-        right = nodes{2};
-
-        % Merge into new node
-        parent = struct('Prob', left.Prob + right.Prob, ...
-                        'Symbol', '', ...
-                        'Children', { {left, right} });
-
-        % Remove and reinsert
-        nodes(1:2) = [];
-        nodes{end+1} = parent;
-    end
-
-    % --- Assign Huffman Codes ---
-    root = nodes{1};
-    code_map = containers.Map;
-
-    function assign_codes(node, code)
-        if isempty(node.Children)
-            code_map(node.Symbol) = code;
-        else
-            assign_codes(node.Children{1}, [code '0']); % left child → 0
-            assign_codes(node.Children{2}, [code '1']); % right child → 1
-        end
-    end
-
-    assign_codes(root, '');
-
-    % --- Format Output ---
-    dict_out = cell(N, 3);
-    for i = 1:N
-        dict_out{i,1} = symbols{i};
-        dict_out{i,2} = probabilities(i);
-        dict_out{i,3} = code_map(symbols{i});
-    end
-
-    % Display tuple-style
-    fprintf('\n--- Output as Tuples ---\n');
-    for i = 1:N
-        fprintf("('%s', %.4f, '%s')\n", dict_out{i,1}, dict_out{i,2}, dict_out{i,3});
-    end
-end
-
-
-%% -------------------------------------------------------------------------
-%               Huffman Encoding with Visualization Function 
-% -------------------------------------------------------------------------
 %% ------------------------------------------------------------------------- 
 %               Huffman Encoding with Visualization Function  
 % ------------------------------------------------------------------------- 
-function dict = huffman_encoding_visual(symbols, P)
-%HUFFMAN_ENCODING_VISUAL Visual Huffman encoding with full table output
+
+function dict = huffman_encoding_visual(dict_input)
+%HUFFMAN_ENCODING_VISUAL Visual Huffman encoding with full table output (UI-based)
 %
 %   dict = huffman_encoding_visual(symbols, P)
 %   - symbols: cell array of symbol names (e.g. {'A','B','C','D','E','F','G'})
 %   - P: vector of probabilities (same length as symbols)
 %
-%   Displays the probability merging table step by step, and returns the
-%   final dictionary of Huffman codes.
-
+%   Creates a UI figure showing the probability & code propagation table,
+%   and prints the final Huffman dictionary.
+    
+    % get the info from dictionary 
+    symbols = dict_input(:,1);
+    P = cell2mat(dict_input(:,2));
     % === Input Validation ===
     if numel(symbols) ~= numel(P)
         error('Symbols and probabilities must have same length.');
@@ -319,39 +282,84 @@ function dict = huffman_encoding_visual(symbols, P)
     % === Step 1: Generate merging history ===
     history_table = merge_probabilities(P);
 
-    % === Step 2: Assign Huffman codes through backward propagation ===
+    % === Step 2: Assign Huffman codes ===
     history_table_full = assign_coding(history_table);
 
-    % === Step 3: Visualization ===
-    fprintf('\n================ Huffman Encoding Visualization ================\n');
-    fprintf('--- Probability Merge History ---\n');
-    disp(history_table);
+    % === Step 3: Prepare data for visualization ===
+    % Convert numeric NaNs to empty strings for table display
+    final_visual_data = cell(size(history_table_full));
+    for r = 1:size(history_table_full,1)
+        for c = 1:size(history_table_full,2)
+            val = history_table_full{r,c};
+            if isnumeric(val)
+                if isnan(val)
+                    final_visual_data{r,c} = '';
+                else
+                    final_visual_data{r,c} = num2str(val, '%.4f');
+                end
+            else
+                final_visual_data{r,c} = val;
+            end
+        end
+    end
 
-    fprintf('\n--- Probability & Code Propagation Table ---\n');
-    disp(history_table_full);
+    % Generate column headers (P1, C1, P2, C2, ...)
+    numCols = size(history_table_full,2);
+    final_visual_headers = cell(1,numCols);
+    for c = 1:numCols
+        if mod(c,2)==1
+            final_visual_headers{c} = sprintf('P%d', ceil(c/2)-1);
+        else
+            final_visual_headers{c} = sprintf('C%d', ceil(c/2)-1);
+        end
+    end
 
-    % === Step 4: Extract Final Codes for Each Symbol ===
-    % The first probability column and its corresponding code column
+    % === Step 4: Build UI Visualization ===
+    close all;
+    f = uifigure('Name','Huffman Encoding Visualization', ...
+                 'Position',[100 100 1000 500]);
+    gl = uigridlayout(f,[2 1]);
+    gl.RowHeight = {'fit','1x'};
+
+    uilabel(gl, ...
+        'Text','Huffman Encoding: Probability and Code Evolution (P/C Steps)', ...
+        'FontSize',16, ...
+        'FontWeight','bold', ...
+        'HorizontalAlignment','center');
+
+    % Column widths (narrow for numeric columns, wider for code columns)
+    col_widths = repmat({70}, 1, numCols);
+    col_widths(2:2:end) = {100}; % widen code columns
+
+    uitable(gl, ...
+        'Data',final_visual_data, ...
+        'ColumnName',final_visual_headers, ...
+        'RowName',{}, ...
+        'FontSize',12, ...
+        'ColumnWidth',col_widths, ...
+        'RowStriping','on', ...
+        'BackgroundColor',[1 1 1; 0.95 0.95 1]);
+
+    % === Step 5: Extract Final Huffman Dictionary ===
     firstPcol = 1;
     firstCcol = 2;
 
-    % Get codes for non-NaN probabilities
-    codes = history_table_full(:, firstCcol);
     probs = cell2mat(history_table_full(:, firstPcol));
-
+    codes = history_table_full(:, firstCcol);
     validIdx = ~isnan(probs);
-    codes = codes(validIdx);
-    symbols = symbols(validIdx);
 
-    % Ensure everything is in same order
+    symbols = symbols(validIdx);
+    codes = codes(validIdx);
+    probs = probs(validIdx);
+
     dict = containers.Map(symbols, codes);
 
-    % === Step 5: Display final dictionary ===
-    fprintf('\n--- Final Huffman Dictionary ---\n');
+    % === Step 6: Console Output ===
+    fprintf('\n--- Final Huffman Codes ---\n');
     for i = 1:length(symbols)
-        fprintf('  %-5s : %s\n', symbols{i}, codes{i});
+        fprintf('Symbol %s (%.4f): %s\n', symbols{i}, probs(i), codes{i});
     end
-    fprintf('=================================================================\n\n');
+    fprintf('===============================================================\n\n');
 end
 
 % === Probability Merge helper function  ===
