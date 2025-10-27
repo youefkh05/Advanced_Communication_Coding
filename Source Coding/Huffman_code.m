@@ -17,6 +17,19 @@ if err_flag ==1
     return; % exits the current script or function
 end
 
+% Generate built-in Huffman dictionary (for verification)
+[dict_builtin, avglen] = huffmandict(symbols, P);
+
+disp('--- Built-in Huffman Codes ---');
+for i = 1:length(symbols)
+    code = dict_builtin{i,2};
+    % Fix nested cell issue (handle {[0 1]} or {0 1} cases)
+    if iscell(code)
+        code = cell2mat(code);
+    end
+    fprintf('%s : %s\n', symbols{i}, num2str(code));
+end
+
 % Print the dictionary neatly
 print_symbols_dic(dict_input, H);
 %{
@@ -284,6 +297,9 @@ end
 %% -------------------------------------------------------------------------
 %               Huffman Encoding with Visualization Function (Final)
 % -------------------------------------------------------------------------
+%% -------------------------------------------------------------------------
+%               Huffman Encoding with Visualization Function (Final)
+% -------------------------------------------------------------------------
 
 function [huffman_codes, huffman_tree] = huffman_encoding_visual(symbols, probabilities)
 % HUFFMAN_ENCODING_VISUAL
@@ -468,7 +484,8 @@ function prob_map = get_current_prob_for_symbol(node, prob_map)
 % Finds the group probability (Pk) for all symbols under the current node.
 % The node.Prob is the reduced/combined probability for the group.
     if node.SymbolIndex ~= 0
-        % Leaf node: its current "group" probability is its own original probability
+        % Leaf node (original symbol) that is NOT yet merged into an internal node.
+        % Its current "group" probability is its own original probability.
         prob_map(node.SymbolIndex) = node.Prob;
     elseif ~isempty(node.Children)
         % Internal node: its probability is the combined probability (Pk)
@@ -477,14 +494,17 @@ function prob_map = get_current_prob_for_symbol(node, prob_map)
         symbol_indices = get_descendant_indices(node);
         
         % 2. Assign the internal node's probability (node.Prob) to all its leaves
+        % This correctly implements the 'replacement' visualization by having all
+        % symbols in the merged group inherit the parent group's probability.
         for idx = 1:length(symbol_indices)
             sym_idx = symbol_indices(idx);
             prob_map(sym_idx) = node.Prob;
         end
         
-        % 3. Continue traversing to handle any unmerged leaf nodes
-        prob_map = get_current_prob_for_symbol(node.Children{1}, prob_map);
-        prob_map = get_current_prob_for_symbol(node.Children{2}, prob_map);
+        % 3. IMPORTANT: Stop recursion here. The children are no longer independent 
+        % working nodes and should not be processed further by this function 
+        % to prevent overwriting the combined probability.
+        % The previous incorrect recursive calls have been removed.
     end
 end
 
