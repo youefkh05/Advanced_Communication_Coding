@@ -101,7 +101,6 @@ end
 %% -------------------------------------------------------------------------
 %              Average Length Calculation 
 % -------------------------------------------------------------------------
-
 function L = average_length_calc(dict)
 %AVERAGE_LENGTH_CALC Compute average codeword length L(C)
 %   L = average_length_calc(dict, P)
@@ -110,7 +109,7 @@ function L = average_length_calc(dict)
 %
 %   If P is empty, it tries to extract from dict(:,2) if present
 %   L : average code length
-    
+
     P = dict(:,2);
     % --- Handle inputs ---
     if nargin < 2 || isempty(P)
@@ -157,6 +156,52 @@ function eta = efficiency_calc(H, L)
     end
 
     eta = (H / L) * 100;
+end
+
+
+%% -------------------------------------------------------------------------
+%               Print Kraft Inequality Function
+% -------------------------------------------------------------------------
+
+function [kraft_sum, kraft_flag]=kraft_analysis(dict)
+% KRAFT_ANALYSIS  Compute Kraft's inequality and visualize Kraft tree
+%   kraft_analysis(dict)
+%
+%   Input:
+%       dict : cell array {N x 3}  → {symbol, P, code}
+%
+%   Example:
+%       dict = {'A','0'; 'B','10'; 'C','110'; 'D','111'};
+%       kraft_analysis(dict);
+
+    if ~iscell(dict) || size(dict,2) < 2
+        error('Input must be a cell array {symbol, code}');
+    end
+
+    % Extract codes
+    codes = dict(:,3);
+    N = length(codes);
+
+    % --- 1. Compute Kraft's inequality ---
+    code_lengths = cellfun(@length, codes);
+    kraft_sum = sum(2.^(-code_lengths));
+
+    fprintf('\n=== Kraft Inequality Check ===\n');
+    fprintf('Sum(2^{-l_i}) = %.4f\n', kraft_sum);
+
+
+
+    if abs(kraft_sum - 1) < 1e-6
+        fprintf('✅ Code satisfies equality → Complete Prefix Code.\n');
+        kraft_flag=2;
+    elseif kraft_sum < 1
+        fprintf('⚠ Code satisfies inequality (valid but not complete).\n');
+        kraft_flag=1;
+    else
+        fprintf('❌ Invalid prefix code (violates Kraft''s inequality).\n');
+        kraft_flag=0;
+    end
+
 end
 
 
@@ -422,49 +467,6 @@ function print_coded_dict(dict, H)
 
 end
 
-
-
-%% -------------------------------------------------------------------------
-%               Print Kraft Inequality Function
-% -------------------------------------------------------------------------
-function [kraft_sum, kraft_flag]=kraft_analysis(dict)
-% KRAFT_ANALYSIS  Compute Kraft's inequality and visualize Kraft tree
-%   kraft_analysis(dict)
-%
-%   Input:
-%       dict : cell array {N x 3}  → {symbol, P, code}
-%
-%   Example:
-%       dict = {'A','0'; 'B','10'; 'C','110'; 'D','111'};
-%       kraft_analysis(dict);
-
-    if ~iscell(dict) || size(dict,2) < 2
-        error('Input must be a cell array {symbol, code}');
-    end
-
-    % Extract codes
-    codes = dict(:,3);
-    N = length(codes);
-
-    % --- 1. Compute Kraft's inequality ---
-    code_lengths = cellfun(@length, codes);
-    kraft_sum = sum(2.^(-code_lengths));
-
-    fprintf('\n=== Kraft Inequality Check ===\n');
-    fprintf('Sum(2^{-l_i}) = %.4f\n', kraft_sum);
-
-    if abs(kraft_sum - 1) < 1e-6
-        fprintf('✅ Code satisfies equality → Complete Prefix Code.\n');
-        kraft_flag=2;
-    elseif kraft_sum < 1
-        fprintf('⚠ Code satisfies inequality (valid but not complete).\n');
-        kraft_flag=1;
-    else
-        fprintf('❌ Invalid prefix code (violates Kraft''s inequality).\n');
-        kraft_flag=0;
-    end
-
-end
 
 %% ------------------------------------------------------------------------- 
 %               Huffman Encoding with Visualization Function  
