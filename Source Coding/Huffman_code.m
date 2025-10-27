@@ -292,313 +292,222 @@ end
 
 
 %% -------------------------------------------------------------------------
-%               Huffman Encoding with Visualization Function
+%               Huffman Encoding with Visualization Function 
 % -------------------------------------------------------------------------
-%% -------------------------------------------------------------------------
-%               Huffman Encoding with Visualization Function (Final)
-% -------------------------------------------------------------------------
-
-function [huffman_codes, huffman_tree] = huffman_encoding_visual(symbols, probabilities)
-% HUFFMAN_ENCODING_VISUAL
-%   Generates Huffman codes and visualizes the step-by-step process
-%   with P/C columns (P0 C0, P1 C1, ...) in a MATLAB UI figure.
+function dict = huffman_encoding_visual(symbols, P)
+%HUFFMAN_ENCODING_VISUAL Visual Huffman encoding with full table output
 %
-%   Visualization Logic:
-%   1. Pk column (Probability): Probability is carried over for non-merged symbols. 
-%      For the two merged groups (L and R), the resulting P_parent is applied 
-%      to the symbols descending from the R group (the larger group) to keep it 
-%      active. The symbols descending from the L group (the smaller group) are 
-%      BLANKED OUT (Active=0) to simulate its removal from the sorted list.
-%   2. Ck column (Current Code): ONLY the 0 or 1 bit assigned in the current step is 
-%      shown for the symbols/groups that were just merged. All other Ck cells are blank.
+%   dict = huffman_encoding_visual(symbols, P)
+%   - symbols: cell array of symbol names (e.g. {'A','B','C','D','E','F','G'})
+%   - P: vector of probabilities (same length as symbols)
+%
+%   Displays the probability merging table step by step, and returns the
+%   final dictionary of Huffman codes.
 
-    N = length(probabilities);
-    if N < 2
-        error('At least two symbols are required.');
+    % === Input Validation ===
+    if numel(symbols) ~= numel(P)
+        error('Symbols and probabilities must have same length.');
     end
 
-    % --- Initialization and Sorting -------------------------------------
-    initial_order = (1:N)'; % Original indices
-    % Sort descending by probability to determine fixed table row order (A to G)
-    [~, initial_sort_idx] = sort(probabilities, 'descend');
-    sorted_symbols = symbols(initial_sort_idx);
-    sorted_probs = probabilities(initial_sort_idx);
+    % Normalize probabilities
+    P = P(:);
+    P = P / sum(P);
+    history_table = merge_probabilities(P);
+    history_table_full = assign_coding(history_table)
+    n = numel(P);
+    maxSteps = n - 1;
 
-    % Estimate max table size
-    maxCols = 2 * (N - 1) + 2;
-    table_history = cell(N, maxCols);
+    % Initialize table history
+    table_history = nan(n, maxSteps+1);
+    table_history(:,1) = P;
 
-    % Fill P0 (initial probabilities) - P0 is always the initial sorted probability
-    for i = 1:N
-        table_history{i,2} = sprintf('%.4f', sorted_probs(i)); % P0
-        table_history{i,3} = ''; % C0
+    % Initialize symbol list
+    curSymbols = symbols(:);
+    curP = P;
+
+    % Node structure for merge tracking
+    tree = struct('symbol', symbols(:), 'prob', num2cell(P), ...
+                  'left', [], 'right', []);
+
+    fprintf('--- Building Huffman Codes ---\n\n');
+
+    for step = 1:maxSteps
+        % Sort by ascending probability
+        [curP, idx] = sort(curP);
+        curSymbols = curSymbols(idx);
+        tree = tree(idx);
+
+        % Store this step’s probabilities
+        table_history(1:numel(curP), step) = curP;
+
+        % Take two smallest
+        p1 = curP(1);
+        p2 = curP(2);
+
+        % Merge into parent node
+        mergedP = p1 + p2;
+        mergedSymbol = [curSymbols{1} curSymbols{2}];
+
+        parentNode.symbol = mergedSymbol;
+        parentNode.prob = mergedP;
+        parentNode.left = tree(1);
+        parentNode.right = tree(2);
+
+        % Update arrays
+        curP = [mergedP; curP(3:end)];
+        curSymbols = [{mergedSymbol}; curSymbols(3:end)];
+        tree = [parentNode; tree(3:end)];
+
+        % Blank merged nodes for visualization
+        table_history(numel(curP)+1:end, step+1) = nan;
     end
 
-    % Initialize nodes (with original index for tracking)
-    nodes = struct('Prob', num2cell(probabilities(:)), ...
-                   'SymbolIndex', num2cell(initial_order), ...
-                   'Children', {[]}, ...
-                   'MergeHistory', {[]}); % Store [step, codebit]
+    % Final probability
+    table_history(1:numel(curP), maxSteps+1) = curP;
 
-    % nodes_working will hold the active list of nodes/groups
-    nodes_working = nodes(initial_sort_idx);
-    
-    % Value = [Probability, Active_Flag (1=Active/Show, 0=Blanked)]
-    % Keys are the original symbol indices (1 to N)
-    current_prob_state = containers.Map('KeyType', 'double', 'ValueType', 'any');
-    for i = 1:N
-        % Initialize: All groups are active
-        current_prob_state(initial_sort_idx(i)) = [sorted_probs(i), 1]; % [Prob, Active]
-    end
+    % === Generate Huffman Codes ===
+    codes = containers.Map;
+    build_codes(tree(1), '', codes);
 
-    % --- Huffman Tree Construction and History Capture -------------------
-    for k = 1:N-1
-        % Sort ascending to find two smallest
-        [~, idx] = sort([nodes_working.Prob], 'ascend');
-        nodes_working = nodes_working(idx);
+    % === Prepare Final Table ===
+    colNames = arrayfun(@(x) sprintf('P%d', x-1), 1:(size(table_history,2)), 'UniformOutput', false);
+    T = array2table(table_history, 'VariableNames', colNames);
+    T.Symbol = symbols(:);
+    T.FinalCode = cellfun(@(s) codes(s), symbols(:), 'UniformOutput', false);
 
-        % L and R are the two nodes with least probability (L <= R)
-        % We will use R to represent the new parent probability in the P column.
-        L = nodes_working(1); % Least probability (gets '1' in this implementation)
-        R = nodes_working(2); % Second least probability (gets '0' in this implementation)
-        
-        % Assign codes *at this current step*
-        L = assign_current_codes_recursively(L, k, '1'); % Assign bit '1'
-        R = assign_current_codes_recursively(R, k, '0'); % Assign bit '0')
+    % Move columns
+    T = movevars(T, 'Symbol', 'Before', 1);
+    T = movevars(T, 'FinalCode', 'After', colNames{end});
 
-        % Create parent node (merge)
-        parent_prob = L.Prob + R.Prob;
-        
-        parent = struct('Prob', parent_prob, ...
-                        'SymbolIndex', 0, ... % Internal node
-                        'Children', { {L, R} }, ...
-                        'MergeHistory', {[]});
+    % Display the final table
+    disp(T);
 
-        % Identify the symbols involved in this merge
-        symbols_L = get_descendant_indices(L);
-        symbols_R = get_descendant_indices(R);
-        symbols_merged_in_this_step = [symbols_L, symbols_R];
-
-        % 1. Update the current probability state map and determine blanking:
-        
-        % The symbols in the L group (smaller prob) will be BLANKED in Pk (Active=0).
-        for idx = symbols_L
-            % Mark L group as inactive (blanked in Pk)
-            % Keep the current group probability for debugging, but set Active=0
-            current_prob_state(idx) = [L.Prob, 0]; % [Prob, Inactive]
-        end
-        
-        % The symbols in the R group (larger prob) will be set to the Parent_Prob (Active=1).
-        for idx = symbols_R
-            % R group becomes the new group value and remains active
-            current_prob_state(idx) = [parent_prob, 1]; % [Parent_Prob, Active]
-        end
-        
-        % 2. Carry over non-merged group values
-        % Any other symbol/group not in L or R should carry over its previous active state
-        
-        % We must check all symbols that were active in P(k-1) and ensure they 
-        % remain active and carry their probability *unless* they were just
-        % marked inactive (symbols_L). This is implicitly handled by not 
-        % iterating over the whole map, but let's make it explicit for correctness.
-        
-        all_symbol_indices = cell2mat(current_prob_state.keys);
-        
-        for idx = all_symbol_indices
-            % Check if this symbol was part of the previous merge (L or R)
-            is_newly_merged = any(idx == symbols_L) || any(idx == symbols_R);
-            
-            if ~is_newly_merged
-                % If it was NOT part of this merge, carry over its state from P(k-1) 
-                % but update its value from the previous step, which is already stored
-                % in the map. No change is needed here, as the map state is only 
-                % modified for L and R above.
-                
-                % We need to make sure the probability value is set correctly for
-                % symbols not involved in the current merge. Since we don't know the
-                % *previous* step's probability directly without tracking it, we must
-                % iterate through the *nodes_working* list (before removing L and R)
-                % to find the current active probability for non-merged groups.
-                
-                % To simplify, we rely on the rule: If a symbol is not in L or R, 
-                % its state remains unchanged from the previous P(k-1) to Pk.
-                % The map already holds the latest "active" value for all symbols.
-                
-                % However, for the very first step P1, symbols A, B, C, D, E are
-                % not in L or R. Their state should be [P0, 1]. This is correct 
-                % because we only modified L and R.
-            end
-        end
-
-        % 3. Replace two nodes with parent
-        nodes_working(1:2) = [];
-        nodes_working(end+1) = parent;
-
-        % 4. Fill table history (Pk/Ck)
-        col_P = 2*k + 2;
-        col_C = 2*k + 3;
-        if col_C > size(table_history, 2)
-            table_history(:, end+1:col_C) = {''};
-        end
-        
-        % Store the active groups for Ck (only the symbols getting a new bit)
-        codes_assigned = [repmat({'1'}, 1, length(symbols_L)), ...
-                          repmat({'0'}, 1, length(symbols_R))];
-
-        for i = 1:N
-            original_idx = initial_sort_idx(i); % Row corresponds to this original symbol index
-            
-            % Pk: Group Probability
-            
-            % Look up the state for this symbol: [Prob, Active]
-            state = current_prob_state(original_idx);
-            
-            if state(2) == 1 % Active_Flag is 1
-                % The group is active (it should show a probability) - show its current probability
-                table_history{i, col_P} = sprintf('%.4f', state(1));
-            else
-                % The group is inactive (it was the 'L' node or has been blanked in a prior step)
-                table_history{i, col_P} = '';
-            end
-            
-            % Ck: Current Code (ONLY the single bit assigned in this step)
-            idx_in_code_list = find(symbols_merged_in_this_step == original_idx);
-            if ~isempty(idx_in_code_list)
-                % Symbol is getting a new code bit
-                table_history{i, col_C} = codes_assigned{idx_in_code_list(1)};
-            else
-                % Symbol is NOT getting a new code bit, so Ck is blank
-                table_history{i, col_C} = ''; 
-            end
-        end
-        
-    end
-    
-    % --- Final Code Assignment ------------------------------------------
-    huffman_tree = nodes_working; % nodes_working now contains the root of the final tree
-    code_list = assign_final_codes(huffman_tree(1), '');
-    huffman_codes = cell(N,1);
-    for i = 1:size(code_list,1)
-        huffman_codes{code_list{i,1}} = code_list{i,2};
-    end
-
-    % --- Build Final Visualization Table --------------------------------
-    final_visual_headers = {'Symbol'};
-    for i = 0:N-2
-        final_visual_headers = [final_visual_headers, {['P' num2str(i)]}, {['C' num2str(i)]}];
-    end
-    final_visual_headers = [final_visual_headers, {'Final Code'}];
-
-    numColsFinal = length(final_visual_headers);
-    final_visual_data = cell(N, numColsFinal);
-    final_codes_sorted = huffman_codes(initial_sort_idx);
-
-    for i = 1:N
-        final_visual_data{i,1} = sorted_symbols{i};
-        final_visual_data{i,end} = final_codes_sorted{i};
-    end
-
-    colsToCopy = min(size(final_visual_data,2)-2, size(table_history,2)-1);
-    final_visual_data(:,2:1+colsToCopy) = table_history(:,2:1+colsToCopy);
-
-    % Clean up empty/zero strings
-    for r = 1:N
-        for c = 2:size(final_visual_data,2)-1
-            if ischar(final_visual_data{r,c}) && strcmp(final_visual_data{r,c},'0.0000')
-                final_visual_data{r,c} = '';
-            end
-        end
-    end
-
-    % --- Visualization UI ----------------------------------------------
-    close all;
-    f = uifigure('Name','Huffman Encoding Visualization', ...
-                 'Position',[100 100 1000 500]);
-    gl = uigridlayout(f,[2 1]);
-    gl.RowHeight = {'fit','1x'};
-
-    uilabel(gl, ...
-        'Text','Huffman Encoding: Probability and Code Evolution (P/C Steps)', ...
-        'FontSize',16, ...
-        'FontWeight','bold', ...
-        'HorizontalAlignment','center');
-
-    col_widths = repmat({70}, 1, size(final_visual_data,2));
-    col_widths{1} = 80;
-    col_widths{end} = 120;
-
-    uitable(gl, ...
-        'Data',final_visual_data, ...
-        'ColumnName',final_visual_headers, ...
-        'RowName',{}, ...
-        'FontSize',12, ...
-        'ColumnWidth',col_widths, ...
-        'RowStriping','on', ...
-        'BackgroundColor',[1 1 1; 0.95 0.95 1]);
-
-    % --- Console Output -------------------------------------------------
-    fprintf('\n--- Final Huffman Codes ---\n');
-    for i = 1:N
-        fprintf('Symbol %s (%.4f): %s\n', symbols{i}, probabilities(i), huffman_codes{i});
-    end
+    % Return dictionary
+    dict = [symbols(:) T.FinalCode];
 end
 
-
-%% -------------------------------------------------------------------------
-%                        Helper Functions
-% -------------------------------------------------------------------------
-
-function node = assign_current_codes_recursively(node, step_k, codebit)
-% Assigns the new code bit ONLY to all leaf nodes under this merged group, 
-% and updates the MergeHistory for visualization.
-    if node.SymbolIndex ~= 0
-        % Leaf node (original symbol) - add new codebit
-        node.MergeHistory = [node.MergeHistory; step_k, codebit];
-    elseif ~isempty(node.Children)
-        % Internal node (group) - pass the new codebit down
-        
-        % The logic here ensures that the code bit is propagated to all
-        % leaf nodes that form this group. This is crucial for the 
-        % Ck visualization where all component symbols receive the bit.
-        
-        % Assign the same code bit to both children recursively
-        node.Children{1} = assign_current_codes_recursively(node.Children{1}, step_k, codebit);
-        node.Children{2} = assign_current_codes_recursively(node.Children{2}, step_k, codebit);
-    end
-end
-
-function indices = get_descendant_indices(node)
-% Returns all leaf indices under a given node
-    if node.SymbolIndex ~= 0
-        indices = node.SymbolIndex;
-        return;
-    end
-    if isempty(node.Children)
-        indices = [];
-        return;
-    end
-    indices = [get_descendant_indices(node.Children{1}), ...
-               get_descendant_indices(node.Children{2})];
-end
-
-function code_list = assign_final_codes(node, code)
-% Generates final Huffman codes from the tree
-    if node.SymbolIndex ~= 0
-        code_list = {node.SymbolIndex, code};
-        return;
-    end
-    
-    % Convention: Smaller probability group gets '1', larger gets '0'.
-    % Children{1} is L (smallest), Children{2} is R (second smallest) from the main loop sort.
-    % We ensure consistency:
-    if node.Children{1}.Prob <= node.Children{2}.Prob
-        % L is smaller/equal, gets '1'
-        left = assign_final_codes(node.Children{1}, [code '1']);
-        right = assign_final_codes(node.Children{2}, [code '0']);
+% === Recursive helper function for code assignment ===
+function build_codes(node, prefix, map)
+    if isempty(node.left) && isempty(node.right)
+        % Leaf node
+        map(node.symbol) = prefix;
     else
-        % L is larger, gets '0'
-        left = assign_final_codes(node.Children{1}, [code '0']);
-        right = assign_final_codes(node.Children{2}, [code '1']);
+        % Traverse left with '0', right with '1'
+        build_codes(node.left, [prefix '0'], map);
+        build_codes(node.right, [prefix '1'], map);
     end
-    code_list = [left; right];
 end
+
+% === Probability Merge helper function  ===
+function history_table = merge_probabilities(P)
+%MERGE_PROBABILITIES Builds Huffman probability merging history (descending)
+%
+%   history_table = merge_probabilities(P)
+%
+%   Input:
+%       P - vector of symbol probabilities
+%
+%   Output:
+%       history_table - table of probabilities after each merge
+%                       Columns: P0, P1, P2, ... (N-1 total)
+%
+%   Note: Probabilities are shown in descending order.
+
+    % --- Input check ---
+    if numel(P) < 2
+        error('At least two probabilities are required.');
+    end
+
+    % --- Initialization ---
+    P = P(:);
+    P = sort(P, 'descend'); % sort descending
+    N = numel(P);
+
+    % Number of P columns = N - 1
+    numCols = N - 1;
+    maxRows = N;
+
+    % Initialize history as cell
+    history = cell(maxRows, numCols);
+
+    % --- Step 0: Fill P0 (descending order) ---
+    for i = 1:maxRows
+        history{i,1} = P(i);
+    end
+
+    curP = P;
+
+    % --- Iteratively merge ---
+    for step = 2:numCols
+        % Sort ascending to pick smallest two
+        curP = sort(curP, 'ascend');
+        if numel(curP) >= 2
+            p1 = curP(1);
+            p2 = curP(2);
+            mergedP = p1 + p2;
+            % Remove two smallest and add merged one
+            curP = [mergedP; curP(3:end)];
+        end
+        % Sort descending for display
+        curP = sort(curP, 'descend');
+
+        % Fill current column
+        for r = 1:maxRows
+            if r <= numel(curP)
+                history{r,step} = curP(r);
+            else
+                history{r,step} = NaN;
+            end
+        end
+    end
+
+    % --- Column names ---
+    colNames = cell(1,numCols);
+    for i = 1:numCols
+        colNames{i} = sprintf('P%d', i-1);
+    end
+
+    % --- Convert to table ---
+    history_table = cell2table(history, 'VariableNames', colNames);
+end
+
+% === Assign code helper function  ===
+function history_table_full = assign_coding(history_table)
+    % assign_coding - expands the history table to include empty code columns
+    %
+    % Input:
+    %   history_table : numeric matrix or table (probability merging history)
+    %
+    % Output:
+    %   history_table_full : cell array with 2N columns
+    %       Even columns: probability values
+    %       Odd columns : empty (reserved for code assignments)
+
+    % If table, convert to numeric array
+    if istable(history_table)
+        history_table = table2array(history_table);
+    end
+
+    % Determine size
+    [numRows, numCols] = size(history_table);
+
+    % Number of columns in new expanded table
+    newCols = 2 * numCols;
+
+    % Initialize as cell array
+    history_table_full = cell(numRows, newCols);
+
+    % Fill even columns with probabilities
+    for col = 1:numCols
+        history_table_full(:, 2 * col-1) = num2cell(history_table(:, col));
+    end
+
+    % Odd columns left empty for later code assignment
+end
+
+%%
+
+
+
+
+
