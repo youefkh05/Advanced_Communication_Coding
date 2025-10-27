@@ -313,8 +313,89 @@ function dict = huffman_encoding_visual(symbols, P)
     P = P(:);
     P = P / sum(P);
     history_table = merge_probabilities(P);
-    history_table = assign_coding(history_table)
-    
+    history_table_full = assign_coding(history_table)
+    n = numel(P);
+    maxSteps = n - 1;
+
+    % Initialize table history
+    table_history = nan(n, maxSteps+1);
+    table_history(:,1) = P;
+
+    % Initialize symbol list
+    curSymbols = symbols(:);
+    curP = P;
+
+    % Node structure for merge tracking
+    tree = struct('symbol', symbols(:), 'prob', num2cell(P), ...
+                  'left', [], 'right', []);
+
+    fprintf('--- Building Huffman Codes ---\n\n');
+
+    for step = 1:maxSteps
+        % Sort by ascending probability
+        [curP, idx] = sort(curP);
+        curSymbols = curSymbols(idx);
+        tree = tree(idx);
+
+        % Store this step’s probabilities
+        table_history(1:numel(curP), step) = curP;
+
+        % Take two smallest
+        p1 = curP(1);
+        p2 = curP(2);
+
+        % Merge into parent node
+        mergedP = p1 + p2;
+        mergedSymbol = [curSymbols{1} curSymbols{2}];
+
+        parentNode.symbol = mergedSymbol;
+        parentNode.prob = mergedP;
+        parentNode.left = tree(1);
+        parentNode.right = tree(2);
+
+        % Update arrays
+        curP = [mergedP; curP(3:end)];
+        curSymbols = [{mergedSymbol}; curSymbols(3:end)];
+        tree = [parentNode; tree(3:end)];
+
+        % Blank merged nodes for visualization
+        table_history(numel(curP)+1:end, step+1) = nan;
+    end
+
+    % Final probability
+    table_history(1:numel(curP), maxSteps+1) = curP;
+
+    % === Generate Huffman Codes ===
+    codes = containers.Map;
+    build_codes(tree(1), '', codes);
+
+    % === Prepare Final Table ===
+    colNames = arrayfun(@(x) sprintf('P%d', x-1), 1:(size(table_history,2)), 'UniformOutput', false);
+    T = array2table(table_history, 'VariableNames', colNames);
+    T.Symbol = symbols(:);
+    T.FinalCode = cellfun(@(s) codes(s), symbols(:), 'UniformOutput', false);
+
+    % Move columns
+    T = movevars(T, 'Symbol', 'Before', 1);
+    T = movevars(T, 'FinalCode', 'After', colNames{end});
+
+    % Display the final table
+    disp(T);
+
+    % Return dictionary
+    dict = [symbols(:) T.FinalCode];
+end
+
+% === Recursive helper function for code assignment ===
+function build_codes(node, prefix, map)
+    if isempty(node.left) && isempty(node.right)
+        % Leaf node
+        map(node.symbol) = prefix;
+    else
+        % Traverse left with '0', right with '1'
+        build_codes(node.left, [prefix '0'], map);
+        build_codes(node.right, [prefix '1'], map);
+    end
 end
 
 % === Probability Merge helper function  ===
@@ -391,118 +472,129 @@ function history_table = merge_probabilities(P)
 end
 
 % === Assign code helper function  ===
-function history_table_full = assign_coding(history_table) 
-    % assign_coding - expands the history table and assigns Huffman codes 
-    % 
-    % Input: 
-    %   history_table : numeric matrix or table (probability merging history) 
-    % 
-    % Output: 
-    %   history_table_full : cell array with 2N columns 
-    %       Odd columns: probability values 
-    %       Even columns: assigned codes 
-     
-    % If table, convert to numeric array 
-    if istable(history_table) 
-        history_table = table2array(history_table); 
-    end 
-     
-    % Determine size 
-    [numRows, numCols] = size(history_table); 
-    newCols = 2 * numCols; 
-     
-    % Initialize 
-    history_table_full = cell(numRows, newCols); 
-     
-    % === Fill odd columns with probabilities === 
-    for col = 1:numCols 
-        history_table_full(:, 2 * col - 1) = num2cell(history_table(:, col)); 
-    end 
-     
-    % === Initialize last code column (start with last merge) === 
-    lastPcol = 2 * numCols - 1; 
-    lastCcol = lastPcol + 1; 
-    history_table_full{1, lastCcol} = '0';   
-    history_table_full{2, lastCcol} = '1';  
-    raw_counter=1;  %for parent assignment 
-     
-    % === Backward propagation of codes === 
-    for col = numCols:-1:2  % start from last column going backward 
-        currPcol = 2 * col - 1; 
-        currCcol = currPcol + 1; 
-        prevPcol = 2 * (col - 1) - 1; 
-        prevCcol = prevPcol + 1; 
-        raw_counter = raw_counter+1; 
-         
-        % Get non-NaN values from P prev column 
-        prevPvals = cell2mat(history_table_full(:, prevPcol)); 
-        prevPvals = prevPvals(~isnan(prevPvals)); 
-         
-        % Get non-NaN values from C curr column 
-        currCvals  = history_table_full(:, currCcol); 
-       
-         
-        % Identify merged value 
-        if length(prevPvals) >= 2 
-            mergedVal = prevPvals(end) + prevPvals(end-1); 
-        else 
-            continue; 
-        end 
-         
-        % Find which row in current P col matches the mergedVal 
-        currPvals = cell2mat(history_table_full(:, currPcol)); 
-        matchIdx = find(abs(currPvals - mergedVal) < 1e-12); 
-        if numel(matchIdx) > 1 
-            matchIdx = matchIdx(1); % take top one if duplicate 
-        end 
-         
-        % Get parent code 
-        parentCode = history_table_full{matchIdx, currCcol}; 
-        if isempty(parentCode) 
-            parentCode = ''; 
-        end 
-         
-        % === Assign child codes === 
-        % Last two rows in previous P column are merged into this parent 
-        history_table_full{raw_counter, prevCcol}   = [parentCode '0']; 
-        history_table_full{raw_counter+1, prevCcol} = [parentCode '1']; 
-         
-        % For each previous non-merged row (in display order top->bottom)
-        for ii = 1:(raw_counter-1)
-            % Skip the rows that were just merged (raw_counter and raw_counter+1)
-            
-            % Get the probability value in the previous column for this row
-            valPrev = history_table_full{ii, prevPcol};
-            if isnan(valPrev)
-                continue; % nothing to copy
-            end
-
-            % Find matching value in the current column (exclude merged parent)
-            currMatches = find(abs(currPvals - valPrev) < 1e-12);
-
-            % Remove the matchIdx (the merged parent) if it appears
-            currMatches(currMatches == matchIdx) = [];
-
-            if isempty(currMatches)
-                continue; % no corresponding match found
-            end
-
-            % If there are duplicates (two identical probabilities)
-            if numel(currMatches) > 1
-                % take both, and copy their codes to the two rows
-                history_table_full{ii,   prevCcol} = currCvals{currMatches(1)};
-                if (ii+1) <= numRows
-                    history_table_full{ii+1, prevCcol} = currCvals{currMatches(2)};
-                end
-            else
-                % single match — copy code directly
-                history_table_full{ii, prevCcol} = currCvals{currMatches(1)};
-            end
+function history_table_full = assign_coding(history_table)
+    % assign_coding - expands the history table and assigns Huffman codes
+    %
+    % Input:
+    %   history_table : numeric matrix or table (probability merging history)
+    %
+    % Output:
+    %   history_table_full : cell array with 2N columns
+    %       Odd columns: probability values
+    %       Even columns: assigned codes
+    
+    % If table, convert to numeric array
+    if istable(history_table)
+        history_table = table2array(history_table);
+    end
+    
+    % Determine size
+    [numRows, numCols] = size(history_table);
+    newCols = 2 * numCols;
+    
+    % Initialize
+    history_table_full = cell(numRows, newCols);
+    
+    % === Fill odd columns with probabilities ===
+    for col = 1:numCols
+        history_table_full(:, 2 * col - 1) = num2cell(history_table(:, col));
+    end
+    
+    % === Initialize last code column (start with last merge) ===
+    lastPcol = 2 * numCols - 1;
+    lastCcol = lastPcol + 1;
+    history_table_full{1, lastCcol} = '0';  
+    history_table_full{2, lastCcol} = '1'; 
+    raw_counter=1;  %for parent assignment
+    
+    % === Backward propagation of codes ===
+    for col = numCols:-1:2  % start from last column going backward
+        currPcol = 2 * col - 1;
+        currCcol = currPcol + 1;
+        prevPcol = 2 * (col - 1) - 1;
+        prevCcol = prevPcol + 1;
+        raw_counter = raw_counter+1;
+        
+        % Get non-NaN values from P prev column
+        prevPvals = cell2mat(history_table_full(:, prevPcol));
+        prevPvals = prevPvals(~isnan(prevPvals));
+        
+        % Get non-NaN values from C curr column
+        currCvals  = history_table_full(:, currCcol);
+      
+        
+        % Identify merged value
+        if length(prevPvals) >= 2
+            mergedVal = prevPvals(end) + prevPvals(end-1);
+        else
+            continue;
         end
+        
+        % Find which row in current P col matches the mergedVal
+        currPvals = cell2mat(history_table_full(:, currPcol));
+        matchIdx = find(abs(currPvals - mergedVal) < 1e-12);
+        if numel(matchIdx) > 1
+            matchIdx = matchIdx(1); % take top one if duplicate
+        end
+        
+        % Get parent code
+        parentCode = history_table_full{matchIdx, currCcol};
+        if isempty(parentCode)
+            parentCode = '';
+        end
+        
+        % === Assign child codes ===
+        % Last two rows in previous P column are merged into this parent
+        history_table_full{raw_counter, prevCcol}   = [parentCode '0'];
+        history_table_full{raw_counter+1, prevCcol} = [parentCode '1'];
+        
+        % === Copy remaining codes ===
+        
+        % For each previous non-merged row (in display order top->bottom)
+        for ii = 1:(raw_counter-2)
+            prevRow = prevNonNanIdx(ii);
+            val = prevVals(prevRow);
 
-    end 
-end 
+            % find candidate rows in current column that have same probability
+            candidates = find(~isnan(currVals) & abs(currVals - val) < tol);
+
+            % If none found with strict tol, try looser tol
+            if isempty(candidates)
+                candidates = find(~isnan(currVals) & abs(currVals - val) < 1e-9);
+            end
+
+            if isempty(candidates)
+                % No exact match: likely because this group was split earlier.
+                % As fallback, copy the code from the first non-empty code in curr column
+                % that has the same probability when rounded to 4 decimals.
+                roundedCurr = round(currVals*1e4)/1e4;
+                roundedVal  = round(val*1e4)/1e4;
+                candidates = find(~isnan(currVals) & (roundedCurr == roundedVal));
+            end
+
+            % choose the first candidate that is not used yet
+            chosen = -1;
+            for cidx = 1:numel(candidates)
+                rCandidate = candidates(cidx);
+                if ~usedCurr(rCandidate)
+                    chosen = rCandidate;
+                    break;
+                end
+            end
+            if chosen == -1
+                % if all matched candidates are used, pick the first candidate
+                chosen = candidates(1);
+            end
+
+            % copy the code from current column to prev column for that matched row
+            history_table_full{prevRow, prevCcol} = history_table_full{chosen, currCcol};
+            usedCurr(chosen) = true;
+        end
+    end
+end
+
 %%
+
 
 
 
