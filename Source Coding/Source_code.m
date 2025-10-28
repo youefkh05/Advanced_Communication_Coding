@@ -36,31 +36,11 @@ print_coded_dict(dict_huffman, H);
 %%------------------------------------------------------------ 
 % Problem 2: Binary Fano  Coding 
 %------------------------------------------------------------ 
- 
-%{
-الجزء بتاعكوا يا رجالة
-استخدموا ده لل
-input 
-بتاعكوا
-dict_input
-
-ال
-funtions 
-H
-L
-eta
-دول جاهزين ليكوا
-
-اللي عليكوا تعملوه  هو 
-dict_Fano  = Fano_encoding_visual(dict_input);
-اللي هي ال function 
-اللي تخت خالص
-%}
 
 % -------------------------------------------------------------------------
 % Manual Fano Coding (with custom output)
 % -------------------------------------------------------------------------
-dict_Fano  = Fano_encoding_visual(dict_input);
+[dict_Fano, history] = fano_encoding_visual(symbols, P)
 
 disp('--- Manual Fano Encoding ---');
 disp(dict_Fano);
@@ -849,11 +829,124 @@ end
 %% ------------------------------------------------------------------------- 
 %               Fano Encoding with Visualization Function  
 % ------------------------------------------------------------------------- 
-function dict = Fano_encoding_visual(dict_input)
-%{هنا شغلكوا
-%} 
-    dict = [];
+function [codes, tableHistory] = fano_encoding_visual(symbols, probs)
+% FANO_ENCODING_VISUAL  Iterative Fano encoding (no recursion) with history tracking.
+%
+%   [codes, tableHistory] = fano_encoding_visual(symbols, probs)
+%
+% Inputs:
+%   symbols : cell array of symbols (e.g., {'A','B','C','D'})
+%   probs   : probability vector (e.g., [0.4 0.3 0.2 0.1])
+%
+% Outputs:
+%   codes        : containers.Map of symbol → Fano code (string)
+%   tableHistory : cell array describing how splits evolved
+%
+% Example:
+%   symbols = {'A','B','C','D','E','F'};
+%   probs = [0.35 0.3 0.2 0.1 0.04 0.01];
+%   [codes, hist] = fano_encoding_visual(symbols, probs);
+
+    %=== Sanitize probabilities (avoid duplicates) ===
+    minq = min(probs);
+    for i = 1:length(probs)
+        for j = 1:length(probs)
+            if probs(j) == probs(i)
+                probs(j) = probs(j) + minq/10000*j;
+            end
+        end
+    end
+
+    %=== Sort descending ===
+    [p, idx] = sort(probs, 'descend');
+    symbols = symbols(idx);
+
+    bf = zeros(length(p), 1);
+    codesNum = zeros(length(p), 1);
+    tableHistory = {};
+
+    %=== Main Encoding Loop ===
+    for i = 1:length(p)
+        cond = false;
+        count = 1;
+        pq = p;
+        b = 0;
+        localHist = {};
+        while ~cond
+            [res1, res2, size1, size2] = splitf(pq);
+
+            find1 = find(res1 == p(i));
+            find2 = find(res2 == p(i));
+
+            if ~isempty(find1)
+                if count == 1
+                    b = 2;
+                else
+                    b = b*10 + 2;
+                end
+                if size1 == 1
+                    cond = true;
+                    bf(i) = b;
+                else
+                    pq = res1;
+                end
+                localHist{end+1} = sprintf('%.3f in Left group (0)');
+            elseif ~isempty(find2)
+                if count == 1
+                    b = 1;
+                else
+                    b = b*10 + 1;
+                end
+                if size2 == 1
+                    cond = true;
+                    bf(i) = b;
+                else
+                    pq = res2;
+                end
+                localHist{end+1} = sprintf('%.3f in Right group (1)');
+            end
+            count = count + 1;
+        end
+        tableHistory{i} = localHist;
+    end
+
+    %=== Convert numeric codes to bit strings ===
+    codes = containers.Map;
+    for i = 1:length(bf)
+        bitstr = num2str(bf(i));
+        bitstr(bitstr=='2') = '0'; % left side is 0
+        bitstr(bitstr=='1') = '1'; % right side is 1
+        codes(symbols{i}) = bitstr;
+    end
+
+    %=== Display Final Codes ===
+    fprintf('\n===== FANO ENCODING RESULTS =====\n');
+    for i = 1:length(symbols)
+        fprintf('%s : %s (%.3f)\n', symbols{i}, codes(symbols{i}), p(i));
+    end
+
+    %=== Optional: visualize split evolution ===
+    fprintf('\n===== SPLIT HISTORY (per symbol) =====\n');
+    for i = 1:length(symbols)
+        fprintf('%s (%.3f):\n', symbols{i}, p(i));
+        disp(char(tableHistory{i}));
+    end
 end
 
 
+%===================== Helper Functions ======================
+
+function [res1,res2,size1,size2]=splitf(inf)
+% SPLITF  Divide a probability vector into two near-equal halves.
+    for t = 1:length(inf)
+        a = sum(inf(1:t));
+        b = sum(inf(t+1:end));
+        c(t) = abs(a - b);
+    end
+    [~, t] = min(c);
+    res1 = inf(1:t);
+    res2 = inf(t+1:end);
+    size1 = numel(res1);
+    size2 = numel(res2);
+end
 
