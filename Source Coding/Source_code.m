@@ -40,7 +40,7 @@ print_coded_dict(dict_huffman, H);
 % -------------------------------------------------------------------------
 % Manual Fano Coding (with custom output)
 % -------------------------------------------------------------------------
-[dict_Fano, history] = fano_encoding_visual(symbols, P)
+dict_Fano = fano_encoding_visual(dict_input)
 
 disp('--- Manual Fano Encoding ---');
 disp(dict_Fano);
@@ -829,124 +829,119 @@ end
 %% ------------------------------------------------------------------------- 
 %               Fano Encoding with Visualization Function  
 % ------------------------------------------------------------------------- 
-function [codes, tableHistory] = fano_encoding_visual(symbols, probs)
-% FANO_ENCODING_VISUAL  Iterative Fano encoding (no recursion) with history tracking.
+%% ------------------------------------------------------------------------- 
+%               Fano Encoding (Iterative, Dynamic History Table)
+% ------------------------------------------------------------------------- 
+%% ------------------------------------------------------------------------- 
+%               Fano Encoding (Iterative, Dynamic History Table)
+% ------------------------------------------------------------------------- 
+function table_out = fano_encoding_visual(dict_input)
+% FANO_ENCODING_VISUAL
+% Fano encoding with dynamic stage-by-stage history table.
 %
-%   [codes, tableHistory] = fano_encoding_visual(symbols, probs)
-%
-% Inputs:
-%   symbols : cell array of symbols (e.g., {'A','B','C','D'})
-%   probs   : probability vector (e.g., [0.4 0.3 0.2 0.1])
-%
-% Outputs:
-%   codes        : containers.Map of symbol → Fano code (string)
-%   tableHistory : cell array describing how splits evolved
-%
-% Example:
-%   symbols = {'A','B','C','D','E','F'};
-%   probs = [0.35 0.3 0.2 0.1 0.04 0.01];
-%   [codes, hist] = fano_encoding_visual(symbols, probs);
+% Output table columns:
+% Symbol | P0 | C0 | P1 | C1 | ... until convergence
 
-    %=== Sanitize probabilities (avoid duplicates) ===
-    minq = min(probs);
-    for i = 1:length(probs)
-        for j = 1:length(probs)
-            if probs(j) == probs(i)
-                probs(j) = probs(j) + minq/10000*j;
-            end
-        end
-    end
+    % === STEP 1: INITIALIZE ===
+    symbols = dict_input(:,1);
+    probs = cell2mat(dict_input(:,2));
 
-    %=== Sort descending ===
-    [p, idx] = sort(probs, 'descend');
+    % Normalize and sort descending
+    probs = probs / sum(probs);
+    [probs, idx] = sort(probs, 'descend');
     symbols = symbols(idx);
 
-    bf = zeros(length(p), 1);
-    codesNum = zeros(length(p), 1);
-    tableHistory = {};
+    % Initialize codes and history
+    codes = repmat({''}, size(symbols));
+    history = cell(length(symbols), 0);
 
-    %=== Main Encoding Loop ===
-    for i = 1:length(p)
-        cond = false;
-        count = 1;
-        pq = p;
-        b = 0;
-        localHist = {};
-        while ~cond
-            [res1, res2, size1, size2] = splitf(pq);
+    % Add first columns P0 and C0
+    history(:, end+1) = num2cell(probs); % P0
+    history(:, end+1) = codes;           % C0
 
-            find1 = find(res1 == p(i));
-            find2 = find(res2 == p(i));
+    % Start with one full group
+    groups = {struct('idx', 1:length(symbols), 'prefix', '')};
+    iteration = 1;
 
-            if ~isempty(find1)
-                if count == 1
-                    b = 2;
-                else
-                    b = b*10 + 2;
-                end
-                if size1 == 1
-                    cond = true;
-                    bf(i) = b;
-                else
-                    pq = res1;
-                end
-                localHist{end+1} = sprintf('%.3f in Left group (0)');
-            elseif ~isempty(find2)
-                if count == 1
-                    b = 1;
-                else
-                    b = b*10 + 1;
-                end
-                if size2 == 1
-                    cond = true;
-                    bf(i) = b;
-                else
-                    pq = res2;
-                end
-                localHist{end+1} = sprintf('%.3f in Right group (1)');
+    % === STEP 2: ITERATIVE FANO GROUPING ===
+    while ~isempty(groups)
+        new_groups = {};
+        for g = 1:length(groups)
+            cur = groups{g};
+            idxs = cur.idx;
+            prefix = cur.prefix;
+
+            % Skip if one symbol only
+            if numel(idxs) <= 1
+                continue;
             end
-            count = count + 1;
+
+            pvals = probs(idxs);
+            % --- Compute reference dynamically ---
+            ref = 2^(-iteration);
+
+            % --- Decide split method (COMBINATION-BASED) ---
+            best_diff = inf; 
+            split_idx = []; 
+            n = length(pvals); 
+
+            for mask = 1:(2^n - 1) 
+                subset = bitget(mask, 1:n); 
+                subset_sum = sum(pvals(logical(subset))); 
+                diff = abs(subset_sum - ref); 
+                if diff < best_diff 
+                    best_diff = diff; 
+                    split_idx = find(subset); 
+                end 
+            end 
+
+            % --- Create two new groups ---
+            g1 = idxs(split_idx);
+            g2 = setdiff(idxs, idxs(split_idx));
+
+            % Assign '0' and '1' respectively
+            for k = g1
+                codes{k} = [prefix '0'];
+            end
+            for k = g2
+                codes{k} = [prefix '1'];
+            end
+
+            % Queue for next stage
+            if ~isempty(g1)
+                new_groups{end+1} = struct('idx', g1, 'prefix', [prefix '0']);
+            end
+            if ~isempty(g2)
+                new_groups{end+1} = struct('idx', g2, 'prefix', [prefix '1']);
+            end
         end
-        tableHistory{i} = localHist;
+
+        % Stop if all groups are singletons
+        if isempty(new_groups)
+            break;
+        end
+
+        % Record stage snapshot
+        history(:, end+1) = num2cell(probs); % Pi
+        history(:, end+1) = codes;           % Ci
+
+        groups = new_groups;
+        iteration = iteration + 1;
     end
 
-    %=== Convert numeric codes to bit strings ===
-    codes = containers.Map;
-    for i = 1:length(bf)
-        bitstr = num2str(bf(i));
-        bitstr(bitstr=='2') = '0'; % left side is 0
-        bitstr(bitstr=='1') = '1'; % right side is 1
-        codes(symbols{i}) = bitstr;
+    % === STEP 3: COMPILE OUTPUT TABLE ===
+    cols = {'Symbol'};
+    for i = 0:(size(history,2)/2 - 1)
+        cols{end+1} = sprintf('P%d', i);
+        cols{end+1} = sprintf('C%d', i);
     end
 
-    %=== Display Final Codes ===
-    fprintf('\n===== FANO ENCODING RESULTS =====\n');
-    for i = 1:length(symbols)
-        fprintf('%s : %s (%.3f)\n', symbols{i}, codes(symbols{i}), p(i));
-    end
+    table_out = [symbols history];
 
-    %=== Optional: visualize split evolution ===
-    fprintf('\n===== SPLIT HISTORY (per symbol) =====\n');
-    for i = 1:length(symbols)
-        fprintf('%s (%.3f):\n', symbols{i}, p(i));
-        disp(char(tableHistory{i}));
-    end
-end
-
-
-%===================== Helper Functions ======================
-
-function [res1,res2,size1,size2]=splitf(inf)
-% SPLITF  Divide a probability vector into two near-equal halves.
-    for t = 1:length(inf)
-        a = sum(inf(1:t));
-        b = sum(inf(t+1:end));
-        c(t) = abs(a - b);
-    end
-    [~, t] = min(c);
-    res1 = inf(1:t);
-    res2 = inf(t+1:end);
-    size1 = numel(res1);
-    size2 = numel(res2);
+    % Display as uitable
+    figure('Name','Fano Encoding Table','Position',[300 200 1100 400]);
+    uitable('Data', table_out, 'ColumnName', cols, ...
+        'ColumnWidth', num2cell(repmat(80,1,numel(cols))), ...
+        'FontSize', 11, 'Units','normalized', 'Position',[0 0 1 1]);
 end
 
