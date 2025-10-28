@@ -30,7 +30,7 @@ disp('--- Manual Huffman Encoding ---');
 disp(dict_huffman);
 
 % Print the codded dictionary neatly
-print_coded_dict(dict_huffman, H);
+print_coded_dict(dict_huffman, H,"Huffman");
 
 
 %%------------------------------------------------------------ 
@@ -46,7 +46,7 @@ disp('--- Manual Fano Encoding ---');
 disp(dict_Fano);
 
 % Print the codded dictionary neatly
-print_coded_dict(dict_Fano, H);
+print_coded_dict(dict_Fano, H,"Fano");
 
 
 
@@ -352,27 +352,31 @@ function print_symbols_dic(dict_input, H)
         'HorizontalAlignment', 'center');
 end
 
-%% -------------------------------------------------------------------------
-%               Print Coded Dictionary Function (with Kraft Tree)
-% -------------------------------------------------------------------------
-function print_coded_dict(dict, H)
-% PRINT_CODED_DICT  Display Huffman dictionary with entropy, avg length, efficiency, and Kraft tree.
+%% ------------------------------------------------------------------------- 
+%               Print Coded Dictionary Function (General Purpose)
+% ------------------------------------------------------------------------- 
+function print_coded_dict(dict, H, title_str)
+% PRINT_CODED_DICT  Display coding dictionary with entropy, avg length, efficiency, and Kraft analysis.
 %
-%   print_coded_dict(dict, H)
+%   print_coded_dict(dict, H, title_str)
 %
 %   Inputs:
-%       dict - cell array {symbol, probability, code}
-%       H    - entropy (bits/symbol)
+%       dict       - cell array {symbol, probability, code}
+%       H          - entropy (bits/symbol)
+%       title_str  - string title for the table window (e.g. 'Fano Coding Results')
 %
 %   This function:
-%       • Calculates average length L(C)
+%       • Calculates average codeword length L(C)
 %       • Calculates efficiency η = (H / L) * 100%
-%       • Checks Kraft’s inequality and plots the Kraft tree
-%       • Displays all results in MATLAB UI + console
+%       • Checks Kraft’s inequality
+%       • Displays results in MATLAB UI + command window
+%
+%   Example:
+%       print_coded_dict(fano_dict, H, 'Fano Coding Summary');
 
     % === Validate input ===
     if nargin < 1 || isempty(dict)
-        disp('Input Huffman dictionary is missing or empty.');
+        disp('Input dictionary is missing or empty.');
         return;
     end
 
@@ -380,7 +384,11 @@ function print_coded_dict(dict, H)
         disp('Dictionary must have 3 columns: {symbol, probability, code}.');
         return;
     end
-    
+
+    if nargin < 3 || isempty(title_str)
+        title_str = 'Coded Dictionary Summary';
+    end
+
     % === Extract data ===
     symbols = cellfun(@char, dict(:,1), 'UniformOutput', false);
     P       = cell2mat(dict(:,2));
@@ -389,10 +397,10 @@ function print_coded_dict(dict, H)
     % === Compute metrics ===
     L   = average_length_calc(dict);
     eta = efficiency_calc(H, L);
-    [kraft_sum, kraft_flag] = kraft_analysis(dict); 
+    [kraft_sum, kraft_flag] = kraft_analysis(dict);
 
     % === Print to Command Window ===
-    fprintf('\n--- Final Huffman Coding Results ---\n');
+    fprintf('\n--- %s ---\n', title_str);
     fprintf('Symbol\tProb.\t\tCode\n');
     fprintf('-----------------------------------------\n');
     for i = 1:length(symbols)
@@ -412,39 +420,38 @@ function print_coded_dict(dict, H)
     end
 
     % === UI Figure ===
-    f = uifigure('Name','Huffman Dictionary Summary', ...
-                 'NumberTitle','off', ...
-                 'Color','w', ...
-                 'Position',[500 200 480 450]);
+    f = uifigure('Name', title_str, ...
+                 'NumberTitle', 'off', ...
+                 'Color', 'w', ...
+                 'Position', [500 200 480 450]);
 
-    gl = uigridlayout(f,[3 1]);
+    gl = uigridlayout(f, [3 1]);
     gl.RowHeight = {'fit', '1x', 'fit'};
     gl.Padding = [10 10 10 10];
 
     % --- Title ---
     uilabel(gl, ...
-        'Text','--- Huffman Coded Dictionary ---', ...
-        'FontSize',14, ...
-        'FontWeight','bold', ...
-        'HorizontalAlignment','center');
+        'Text', ['--- ' title_str ' ---'], ...
+        'FontSize', 14, ...
+        'FontWeight', 'bold', ...
+        'HorizontalAlignment', 'center');
 
     % --- Table ---
-    data = [symbols, arrayfun(@(p) sprintf('%.4f',p), P,'UniformOutput',false), codes];
+    data = [symbols, arrayfun(@(p) sprintf('%.4f', p), P, 'UniformOutput', false), codes];
     uitable(gl, ...
-        'Data',data, ...
-        'ColumnName',{'Symbol','Probability','Code'}, ...
-        'FontSize',12, ...
-        'RowStriping','on', ...
-        'ColumnWidth',{'1x','1x','1x'});
+        'Data', data, ...
+        'ColumnName', {'Symbol', 'Probability', 'Code'}, ...
+        'FontSize', 12, ...
+        'RowStriping', 'on', ...
+        'ColumnWidth', {'1x', '1x', '1x'});
 
-    % --- Summary Labels ---
+    % --- Summary Line ---
     uilabel(gl, ...
         'Text', sprintf('H = %.4f | L = %.4f | η = %.2f %% | Kraft = %.4f', H, L, eta, kraft_sum), ...
-        'FontSize',12, ...
-        'FontWeight','bold', ...
-        'FontColor',[0 0.3 0.7], ...
-        'HorizontalAlignment','center');
-
+        'FontSize', 12, ...
+        'FontWeight', 'bold', ...
+        'FontColor', [0 0.3 0.7], ...
+        'HorizontalAlignment', 'center');
 end
 
 
@@ -829,12 +836,7 @@ end
 %% ------------------------------------------------------------------------- 
 %               Fano Encoding with Visualization Function  
 % ------------------------------------------------------------------------- 
-%% ------------------------------------------------------------------------- 
-%               Fano Encoding (Iterative, Dynamic History Table)
-% ------------------------------------------------------------------------- 
-%% ------------------------------------------------------------------------- 
-%               Fano Encoding (Iterative, Dynamic History Table)
-% ------------------------------------------------------------------------- 
+
 function table_out = fano_encoding_visual(dict_input)
 % FANO_ENCODING_VISUAL
 % Fano encoding with dynamic stage-by-stage history table.
