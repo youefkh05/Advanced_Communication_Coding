@@ -943,5 +943,8 @@ function table_out = fano_encoding_visual(dict_input)
     uitable('Data', table_out, 'ColumnName', cols, ...
         'ColumnWidth', num2cell(repmat(80,1,numel(cols))), ...
         'FontSize', 11, 'Units','normalized', 'Position',[0 0 1 1]);
+    % === STEP 3: FINAL OUTPUT (Symbol, Prob, Code) ===
+    table_out = [symbols num2cell(probs) codes];
+    cols = {'Symbol', 'Probability', 'Code'};
 end
 
