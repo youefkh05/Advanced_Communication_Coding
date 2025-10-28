@@ -496,6 +496,9 @@ function dict = huffman_encoding_visual(dict_input)
 
     % === Step 1: Generate merging history ===
     history_table = merge_probabilities(P);
+    
+     % === Step 1 Visualization ===
+    visualize_merging_process(P, history_table);
 
     % === Step 2: Assign Huffman codes ===
     history_table_full = assign_coding(history_table);
@@ -657,6 +660,77 @@ function history_table = merge_probabilities(P)
     % --- Convert to table ---
     history_table = cell2table(history, 'VariableNames', colNames);
 end
+
+
+% === Visualization of Probability Merging Process  === 
+function visualize_merging_process(P, history_table)
+% VISUALIZE_MERGING_PROCESS Display a UI table of Huffman probability merging
+%
+%   visualize_merging_process(P, history_table)
+%
+%   Displays the merging steps used in Huffman encoding as a clean table UI.
+%
+%   Inputs:
+%       P              - Original probability vector (used for scaling)
+%       history_table  - Table of merging probabilities (output of merge_probabilities)
+%
+%   Example:
+%       history_table = merge_probabilities([0.4 0.2 0.15 0.15 0.1]);
+%       visualize_merging_process([0.4 0.2 0.15 0.15 0.1], history_table);
+
+    % --- Input validation ---
+    if nargin < 2
+        error('Usage: visualize_merging_process(P, history_table)');
+    end
+    if ~istable(history_table)
+        error('history_table must be a MATLAB table.');
+    end
+
+    % === Step 1: Convert numeric values (NaN → empty string for display) ===
+    merge_visual_data = cell(size(history_table));
+    for r = 1:size(history_table,1)
+        for c = 1:size(history_table,2)
+            val = history_table{r,c};
+            if isnumeric(val)
+                if isnan(val)
+                    merge_visual_data{r,c} = '';
+                else
+                    merge_visual_data{r,c} = num2str(val, '%.4f');
+                end
+            else
+                merge_visual_data{r,c} = val;
+            end
+        end
+    end
+
+    % === Step 2: Build UI Table Figure ===
+    f_merge = uifigure('Name','Step 1: Probability Merging History', ...
+                 'Position',[150 150 700 400]);
+
+    gl_merge = uigridlayout(f_merge,[2 1]);
+    gl_merge.RowHeight = {'fit','1x'};
+
+    uilabel(gl_merge, ...
+        'Text','Step 1: Huffman Probability Merging Process', ...
+        'FontSize',16, ...
+        'FontWeight','bold', ...
+        'HorizontalAlignment','center');
+
+    uitable(gl_merge, ...
+        'Data',merge_visual_data, ...
+        'ColumnName',history_table.Properties.VariableNames, ...
+        'RowName',{}, ...
+        'FontSize',12, ...
+        'ColumnWidth',repmat({80}, 1, width(history_table)), ...
+        'RowStriping','on', ...
+        'BackgroundColor',[1 1 1; 0.95 0.95 1]);
+
+    % === Step 3: Optional console summary ===
+    fprintf('\n--- Probability Merging Steps ---\n');
+    disp(history_table);
+    fprintf('=================================\n\n');
+end
+
 
 % === Assign code helper function  ===
 function history_table_full = assign_coding(history_table) 
