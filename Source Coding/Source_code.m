@@ -839,7 +839,7 @@ end
 
 function table_out = fano_encoding_visual(dict_input)
 % FANO_ENCODING_VISUAL
-% Fano encoding with dynamic stage-by-stage history table.
+% Classic Fano encoding: split groups into two with nearly equal probabilities
 %
 % Output table columns:
 % Symbol | P0 | C0 | P1 | C1 | ... until convergence
@@ -853,68 +853,57 @@ function table_out = fano_encoding_visual(dict_input)
     [probs, idx] = sort(probs, 'descend');
     symbols = symbols(idx);
 
+    n = length(symbols);
+    
     % Initialize codes and history
-    codes = repmat({''}, size(symbols));
-    history = cell(length(symbols), 0);
+    codes = repmat({''}, n, 1);
+    history = cell(n, 0);
 
     % Add first columns P0 and C0
     history(:, end+1) = num2cell(probs); % P0
     history(:, end+1) = codes;           % C0
 
     % Start with one full group
-    groups = {struct('idx', 1:length(symbols), 'prefix', '')};
-    iteration = 1;
+    groups = {struct('indices', 1:n, 'prefix', '')};
 
     % === STEP 2: ITERATIVE FANO GROUPING ===
     while ~isempty(groups)
         new_groups = {};
+        
         for g = 1:length(groups)
-            cur = groups{g};
-            idxs = cur.idx;
-            prefix = cur.prefix;
+            cur_group = groups{g};
+            group_indices = cur_group.indices;
+            prefix = cur_group.prefix;
 
             % Skip if one symbol only
-            if numel(idxs) <= 1
+            if numel(group_indices) <= 1
                 continue;
             end
 
-            pvals = probs(idxs);
-            % --- Compute reference dynamically ---
-            ref = 2^(-iteration);
+            group_probs = probs(group_indices);
+            
+            % --- Split into two groups with nearly equal probabilities ---
+            split_point = find_equal_split(group_probs);
+            
+            % Group 1: indices 1 to split_point
+            g1_indices = group_indices(1:split_point);
+            % Group 2: indices split_point+1 to end
+            g2_indices = group_indices(split_point+1:end);
 
-            % --- Decide split method (COMBINATION-BASED) ---
-            best_diff = inf; 
-            split_idx = []; 
-            n = length(pvals); 
-
-            for mask = 1:(2^n - 1) 
-                subset = bitget(mask, 1:n); 
-                subset_sum = sum(pvals(logical(subset))); 
-                diff = abs(subset_sum - ref); 
-                if diff < best_diff 
-                    best_diff = diff; 
-                    split_idx = find(subset); 
-                end 
-            end 
-
-            % --- Create two new groups ---
-            g1 = idxs(split_idx);
-            g2 = setdiff(idxs, idxs(split_idx));
-
-            % Assign '0' and '1' respectively
-            for k = g1
+            % Assign '0' to first group, '1' to second group
+            for k = g1_indices
                 codes{k} = [prefix '0'];
             end
-            for k = g2
+            for k = g2_indices
                 codes{k} = [prefix '1'];
             end
 
             % Queue for next stage
-            if ~isempty(g1)
-                new_groups{end+1} = struct('idx', g1, 'prefix', [prefix '0']);
+            if ~isempty(g1_indices)
+                new_groups{end+1} = struct('indices', g1_indices, 'prefix', [prefix '0']);
             end
-            if ~isempty(g2)
-                new_groups{end+1} = struct('idx', g2, 'prefix', [prefix '1']);
+            if ~isempty(g2_indices)
+                new_groups{end+1} = struct('indices', g2_indices, 'prefix', [prefix '1']);
             end
         end
 
@@ -928,7 +917,6 @@ function table_out = fano_encoding_visual(dict_input)
         history(:, end+1) = codes;           % Ci
 
         groups = new_groups;
-        iteration = iteration + 1;
     end
 
     % === STEP 3: COMPILE OUTPUT TABLE ===
@@ -945,8 +933,41 @@ function table_out = fano_encoding_visual(dict_input)
     uitable('Data', table_out, 'ColumnName', cols, ...
         'ColumnWidth', num2cell(repmat(80,1,numel(cols))), ...
         'FontSize', 11, 'Units','normalized', 'Position',[0 0 1 1]);
-    % === STEP 3: FINAL OUTPUT (Symbol, Prob, Code) ===
+    
+    % === STEP 4: FINAL OUTPUT (Symbol, Prob, Code) ===
     table_out = [symbols num2cell(probs) codes];
-    cols = {'Symbol', 'Probability', 'Code'};
 end
 
+function split_point = find_equal_split(group_probs)
+% FIND_EQUAL_SPLIT Find split point that makes two groups with nearly equal probabilities
+%
+% Strategy: Find the split point where |sum(top_group) - sum(bottom_group)| is minimized
+%
+% Input: group_probs (already sorted descending)
+% Output: split_point (index where to split)
+
+    n = length(group_probs);
+    
+    if n == 1
+        split_point = 1;
+        return;
+    end
+    
+    total_sum = sum(group_probs);
+    best_diff = inf;
+    best_split = 1;
+    
+    % Try each possible split point
+    for i = 1:(n-1)
+        top_sum = sum(group_probs(1:i));
+        bottom_sum = sum(group_probs(i+1:end));
+        diff = abs(top_sum - bottom_sum);
+        
+        if diff < best_diff
+            best_diff = diff;
+            best_split = i;
+        end
+    end
+    
+    split_point = best_split;
+end
