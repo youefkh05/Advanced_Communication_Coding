@@ -781,26 +781,15 @@ for i = 1:length(EbN0_dB)
     rx_bits = rx > 0;
     BER_uncoded_sim(i) = mean(rx_bits ~= tx_bits_uncoded);
 end
+
 %% ===================== PLOTTING ==============================
 fig = figure; hold on;
-
-semilogy(EbN0_dB, BER_uncoded_sim,  'go--', 'LineWidth', 1.8, ...
-    'MarkerSize', 7, 'DisplayName','Uncoded BPSK (Baseline)');
 
 semilogy(EbN0_dB, BER_uncoded_theory, 'k-', 'LineWidth', 2, ...
     'DisplayName','Uncoded BPSK (Theory)');
 
-semilogy(EbN0_dB, BER_hamming_qpsk, 'bo--', 'LineWidth', 1.8, ...
-    'MarkerSize', 7, 'DisplayName','Proposed: QPSK + Hamming (15,11)');
-
-grid on; grid minor;
-xlabel('E_b/N_0 (dB)','FontWeight','bold');
-ylabel('BER','FontWeight','bold');
-title('Problem 7: Proposed Scheme vs Uncoded BPSK');
-legend('Location','southwest');
-set(gca,'YScale','log');
-ylim([1e-5 1]);
-xlim([-3 10]);
+semilogy(EbN0_dB, BER_hamming_bpsk, 'go--', 'LineWidth', 1.5, ...
+    'MarkerSize', 7, 'DisplayName','Hamming (15,11) BPSK');
 
 
 %% ================= TEXT BOX =================
@@ -818,19 +807,11 @@ annotation(fig,'textbox', ...
         'Q7_QPSK_BPSK_(15,11)_Hamming code', ...
         'figures');
 
-%% ================= REPORT ANSWERS ============================
+%% ================= REPORT ANSWER (7.1.e) ====================
 fprintf('(e) Recommendation:\n');
-fprintf(' Using Hamming (15,11) improves BER performance.\n\n');
-
-fprintf('(f) Proposal:\n');
-fprintf(' Use QPSK with Hamming (15,11) to keep transmission time\n');
-fprintf(' equal to or less than uncoded BPSK.\n\n');
-
-fprintf('(g) Comment:\n');
-fprintf(' The proposed QPSK + Hamming (15,11) scheme achieves\n');
-fprintf(' significant BER improvement while maintaining equal\n');
-fprintf(' or lower transmission time compared to uncoded BPSK.\n');
-
+fprintf(' QPSK is preferred.\n');
+fprintf(' Same BER as BPSK with double transmission rate.\n');
+fprintf(' More spectrally efficient with no BER penalty.\n');
 end
 
 %% Q8
