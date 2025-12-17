@@ -110,6 +110,7 @@ function save_figure_png(figHandle, figName, savePath)
 
     fprintf('Figure saved successfully:\n%s\n', fileName);
 end
+
 %% Plot BPSK
 function fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim)
 % PLOT_BPSK_BER
