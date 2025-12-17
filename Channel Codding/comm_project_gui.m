@@ -2,7 +2,7 @@ function comm_project_gui
 % DIGITAL COMMUNICATIONS PROJECT GUI (Q3 → Q9)
 % Single-file implementation
 
-    close all;
+    
 
     % ================= HOME PAGE =================
     homeFig = uifigure( ...
@@ -33,8 +33,8 @@ end
 %                  QUESTION WINDOW
 % ===============================================================
 function open_question(qnum, homeFig)
-
-    homeFig.Visible = 'off';
+    
+    %homeFig.Visible = 'off';
 
     qFig = uifigure( ...
         'Name', sprintf('Question %d', qnum), ...
