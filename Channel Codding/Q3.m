@@ -1,33 +1,38 @@
-%% ============================================================
-%  Problem 3: Uncoded BPSK over AWGN Channel
-% ============================================================
-clc;
-clear;
-close all;
+%% Q3
+% ===============================================================
+% ====================== QUESTION 3 =============================
+% ===============================================================
+function Q3
+% Uncoded BPSK over AWGN
 
-%% ================= PARAMETERS ===============================
-EbN0_dB = -3:1:10;              % Eb/No range in dB
-EbN0_lin = 10.^(EbN0_dB/10);    % Linear scale
-Eb = 1;                         % Energy per bit
-A = sqrt(Eb);                   % BPSK amplitude
-Nbits = 110000;                 % Number of bits
+    fprintf('Started Q3\n');
+    pause(3);
 
-%%  BPSK Simulation
-[BER_theory, BER_sim] = bpsk_uncoded_ber(EbN0_dB, Nbits, Eb)
+    %% ================= PARAMETERS ===============================
+    EbN0_dB = -3:1:10;              % Eb/No range in dB
+    EbN0_lin = 10.^(EbN0_dB/10);    % Linear scale
+    Eb = 1;                         % Energy per bit
+    A = sqrt(Eb);                   % BPSK amplitude
+    Nbits = 110000;                 % Number of bits
+    
+    %%  BPSK Simulation
+    fprintf('BPSK Simulation\n');
 
-%% ===================== PLOTTING ==============================
-fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim);
+    [BER_theory, BER_sim] = bpsk_uncoded_ber(EbN0_dB, Nbits, Eb);
+    
+    %% ===================== PLOTTING ==============================
+    fprintf('BPSK Plot\n');
 
-% --- Save figure ---
-save_figure_png(fig, ...
-    'Q3_Uncoded_BPSK_AWGN', ...
-    'results/Q3');
+    fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim, Nbits);
+    
+    % --- Save figure ---
+    save_figure_png(fig, ...
+        'Q3_Uncoded_BPSK_AWGN', ...
+        'figures');
+end
 
+%====================== Q3 Helper functions =============================
 
-
-
-
-%%          Functions
 %%  BPSK
 function [BER_theory, BER_sim] = bpsk_uncoded_ber(EbN0_dB, Nbits, Eb)
 % BPSK_UNCODED_BER
@@ -110,9 +115,8 @@ function save_figure_png(figHandle, figName, savePath)
 
     fprintf('Figure saved successfully:\n%s\n', fileName);
 end
-
 %% Plot BPSK
-function fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim)
+function fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim, Nbits)
 % PLOT_BPSK_BER
 % Plots theoretical and simulated BER for uncoded BPSK over AWGN
 %
@@ -120,18 +124,19 @@ function fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim)
 %   EbN0_dB     : Eb/N0 values in dB
 %   BER_theory : theoretical BER
 %   BER_sim    : simulated BER
+%   Nbits      : number of simulated bits
 %
 % Output:
 %   fig        : figure handle
 
     fig = figure;
 
-    % --- Theoretical BER (solid blue line) ---
+    % --- Theoretical BER ---
     semilogy(EbN0_dB, BER_theory, ...
         'b-', 'LineWidth', 2);
     hold on;
 
-    % --- Simulated BER (red circles with connecting dashed line) ---
+    % --- Simulated BER ---
     semilogy(EbN0_dB, BER_sim, ...
         'ro--', ...
         'MarkerSize', 7, ...
@@ -157,4 +162,19 @@ function fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim)
 
     ylim([1e-5 1]);
     set(gca, 'FontSize', 11);
+
+    % ================= TEXT BOX ON FIGURE =================
+    infoStr = { ...
+        'Modulation: BPSK', ...
+        'Channel: AWGN', ...
+        sprintf('Monte-Carlo bits: %d', Nbits) ...
+    };
+
+    annotation(fig, 'textbox', ...
+        [0.15 0.18 0.3 0.15], ... % position [x y w h]
+        'String', infoStr, ...
+        'FitBoxToText','on', ...
+        'BackgroundColor','white', ...
+        'EdgeColor','black', ...
+        'FontSize',10);
 end

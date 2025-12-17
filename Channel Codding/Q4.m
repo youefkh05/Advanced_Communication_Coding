@@ -1,8 +1,12 @@
-clc;
-clear;
-close all;
-
+%% Q4
+% ===============================================================
+% ====================== QUESTION 4 =============================
+% ===============================================================
+function Q4
 % BPSK with Repetition-3 Coding (Hard Decision)
+    fprintf('Q4 Start\n');
+    pause(3);
+
 
     %% ================= PARAMETERS ===============================
     EbN0_dB = -3:1:10;
@@ -16,6 +20,7 @@ close all;
     BER_uncoded = 0.5 * erfc(sqrt(EbN0_lin));
 
     %% ================= SIMULATION ===============================
+    fprintf('Simulating Case1 \n');
     BER_same_Etx = zeros(size(EbN0_dB));
     BER_same_Einfo = zeros(size(EbN0_dB));
 
@@ -44,6 +49,7 @@ close all;
     end
 
     %% ===== Case 2: Same Energy per Information Bit =====
+    fprintf('Simulating Case2 \n');
     A_info = A / sqrt(R);
     tx_symbols = A_info * (2*coded_bits - 1);
 
@@ -63,6 +69,8 @@ close all;
     end
 
     %% ===================== PLOTTING ==============================
+    fprintf('Q4 Plot \n');
+
     fig = plot_q4_ber(EbN0_dB, ...
         BER_uncoded, ...
         BER_same_Etx, ...
@@ -72,10 +80,10 @@ close all;
     %% ===================== SAVE FIGURE ===========================
     save_figure_png(fig, ...
         'Q4_BPSK_Repetition3_HardDecision', ...
-        'results/Q4');
-
-
-    %% Plot Q4
+        'figures');
+end
+%====================== Q4 Helper functions =============================
+%% Plot Q4
 function fig = plot_q4_ber(EbN0_dB, BER_uncoded, BER_Etx, BER_Einfo, Nbits)
 
     fig = figure;
@@ -112,36 +120,4 @@ function fig = plot_q4_ber(EbN0_dB, BER_uncoded, BER_Etx, BER_Einfo, Nbits)
         'BackgroundColor','white', ...
         'EdgeColor','black', ...
         'FontSize',10);
-end
-
-%%  Save Figure
-function save_figure_png(figHandle, figName, savePath)
-% SAVE_FIGURE_PNG
-% Saves a MATLAB figure as PNG with proper formatting
-%
-% Inputs:
-%   figHandle : handle to figure
-%   figName   : string (figure title & filename)
-%   savePath  : string (directory path)
-
-    % --- Input checks ---
-    if ~isvalid(figHandle)
-        error('Invalid figure handle.');
-    end
-
-    if ~isfolder(savePath)
-        mkdir(savePath);
-    end
-
-    % --- Set figure properties ---
-    figHandle.Name = figName;
-    figHandle.NumberTitle = 'off';
-
-    % --- Build full file path ---
-    fileName = fullfile(savePath, [figName '.png']);
-
-    % --- Save figure ---
-    exportgraphics(figHandle, fileName, 'Resolution', 300);
-
-    fprintf('Figure saved successfully:\n%s\n', fileName);
 end

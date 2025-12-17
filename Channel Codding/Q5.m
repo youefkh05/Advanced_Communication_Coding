@@ -1,12 +1,14 @@
-%% ============================================================
-%  Problem 5
-% ============================================================
-clc;
-clear;
-close all;
+%% Q5
+% ===============================================================
+% ====================== QUESTION 5 =============================
+% ===============================================================
+function Q5
 % BPSK with Repetition-3 Coding (Soft Decision)
 
     %% ================= PARAMETERS ===============================
+    fprintf('Q5 Start\n');
+    pause(3);
+
     EbN0_dB = -3:1:10;
     EbN0_lin = 10.^(EbN0_dB/10);
     Eb = 1;
@@ -28,6 +30,8 @@ close all;
     coded_bits = repelem(bits, R);
 
     %% ===== Case 1: Same Energy per Transmitted Bit (Hard decision) =====
+    fprintf('Simulating Case1 \n');
+
     tx_symbols = A * (2*coded_bits - 1);
 
     for k = 1:length(EbN0_dB)
@@ -46,6 +50,8 @@ close all;
     end
 
     %% ===== Case 2: Same Energy per Information Bit (Soft decision) =====
+    fprintf('Simulating Case2 \n');
+
     A_info = A / sqrt(R);
     tx_symbols = A_info * (2*coded_bits - 1);
 
@@ -64,6 +70,8 @@ close all;
     end
 
     %% ===================== PLOTTING ==============================
+    fprintf('Q5 Plot \n');
+
     fig = plot_q5_ber(EbN0_dB, ...
         BER_uncoded, ...
         BER_same_Etx, ...
@@ -73,9 +81,10 @@ close all;
     %% ===================== SAVE FIGURE ===========================
     save_figure_png(fig, ...
         'Q5_BPSK_Repetition3_SoftDecision', ...
-        'results/Q5');
+        'figures');
+end
 
-
+%====================== Q5 Helper functions =============================
 %% Plot Q5
 function fig = plot_q5_ber(EbN0_dB, BER_uncoded, BER_Etx, BER_Einfo, Nbits)
 
@@ -120,36 +129,4 @@ function fig = plot_q5_ber(EbN0_dB, BER_uncoded, BER_Etx, BER_Einfo, Nbits)
         'BackgroundColor','white', ...
         'EdgeColor','black', ...
         'FontSize',10);
-end
-
-%%  Save Figure
-function save_figure_png(figHandle, figName, savePath)
-% SAVE_FIGURE_PNG
-% Saves a MATLAB figure as PNG with proper formatting
-%
-% Inputs:
-%   figHandle : handle to figure
-%   figName   : string (figure title & filename)
-%   savePath  : string (directory path)
-
-    % --- Input checks ---
-    if ~isvalid(figHandle)
-        error('Invalid figure handle.');
-    end
-
-    if ~isfolder(savePath)
-        mkdir(savePath);
-    end
-
-    % --- Set figure properties ---
-    figHandle.Name = figName;
-    figHandle.NumberTitle = 'off';
-
-    % --- Build full file path ---
-    fileName = fullfile(savePath, [figName '.png']);
-
-    % --- Save figure ---
-    exportgraphics(figHandle, fileName, 'Resolution', 300);
-
-    fprintf('Figure saved successfully:\n%s\n', fileName);
 end

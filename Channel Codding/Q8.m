@@ -1,14 +1,14 @@
-%% ============================================================
-%  Problem 8: QPSK Vs 16-QAM
-% ============================================================
-clc;
-clear;
-close all;
 
+%% Q8
+% ===============================================================
+% ====================== QUESTION 8 =============================
+% ===============================================================
+function Q8
 % QPSK vs 16-QAM with BCH(255,131)
 
 fprintf('Q8: QPSK vs 16-QAM + BCH(255,131)\n');
 fprintf('---------------------------------\n');
+pause(3);
 
 %% ================= PARAMETERS ===============================
 EbN0_dB = 5:15;
@@ -96,8 +96,11 @@ BER_16QAM(6:end) = interp1(5:9,BER_16QAM(1:5),10:15,'linear');
 %% ================= PLOTTING ================================
 fig = figure; hold on;
 
-semilogy(EbN0_dB,BER_QPSK,'bo-','LineWidth',1.5,'DisplayName','QPSK (No Coding)');
-semilogy(EbN0_dB,BER_16QAM,'rs-','LineWidth',1.5,'DisplayName','16-QAM + BCH(255,131)');
+semilogy(EbN0_dB,BER_QPSK,'bo--', 'LineWidth', 1.5, ...
+    'MarkerSize', 7, 'DisplayName','QPSK (No Coding)');
+
+semilogy(EbN0_dB,BER_16QAM,'go--', 'LineWidth', 1.5, ...
+    'MarkerSize', 7, 'DisplayName','16-QAM + BCH(255,131)');
 
 grid on; grid minor;
 xlabel('E_b/N_0 (dB)','FontWeight','bold');
@@ -117,7 +120,7 @@ annotation(fig,'textbox', ...
     'FitBoxToText','on', ...
     'BackgroundColor','white');
 
-save_figure_png(fig,'Q8_QPSK_vs_16QAM_BCH','results/Q8');
+save_figure_png(fig,'Q8_QPSK_vs_16QAM_BCH','figures');
 end
 
 %====================== Q8 Helper functions =============================

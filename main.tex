@@ -1,0 +1,335 @@
+\UseRawInputEncoding
+
+\documentclass[12pt,a4paper]{report}
+
+% ==================================================
+% Packages
+% ==================================================
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\geometry{margin=1in}
+\onehalfspacing
+
+% ==================================================
+% MATLAB Listings Style (Colorful, Clean)
+% ==================================================
+\definecolor{matlabblue}{rgb}{0,0,1}
+\definecolor{matlabgreen}{rgb}{0,0.5,0}
+\definecolor{matlaborange}{rgb}{1,0.4,0}
+\definecolor{matlabgray}{rgb}{0.4,0.4,0.4}
+
+\lstdefinestyle{MATLABstyle}{
+    language=Matlab,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{matlabblue}\bfseries,
+    commentstyle=\color{matlabgreen},
+    stringstyle=\color{matlaborange},
+    numberstyle=\tiny\color{matlabgray},
+    numbers=left,
+    stepnumber=1,
+    numbersep=8pt,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4
+}
+
+\lstset{style=MATLABstyle}
+
+% ==================================================
+\begin{document}
+% ==================================================
+
+% ==================================================
+% Cover Page
+% ==================================================
+\begin{titlepage}
+\centering
+\vspace*{1cm}
+
+{\Large \textbf{Electronics and Electrical Communications Engineering Department}}\\
+{\Large \textbf{Faculty of Engineering – Cairo University}}\\[1.2cm]
+
+{\Huge \textbf{Information Theory Project – Part II}}\\
+{\LARGE \textbf{Channel Coding}}\\[1cm]
+
+{\Large ELC4020 – Advanced Communication Systems}\\
+{\Large 4\textsuperscript{th} Year – 1\textsuperscript{st} Semester}\\
+{\Large Academic Year 2025/2026}\\[1.2cm]
+
+\textbf{Prepared by:}\\[0.3cm]
+\begin{tabular}{ccc}
+\textbf{Name} & \textbf{Section} & \textbf{ID} \\ \midrule
+Mohamed Ahmed Abd El Hakam & 3 & 9220647 \\
+Yousef Khaled Omar Mahmoud & 4 & 9220984 \\
+Ahmed Wagdy Mohy Ibrahim & 1 & 9220120 \\
+Abdelrahman Essa Elsayed & 2 & 9220469 \\
+\end{tabular}
+
+\vfill
+
+\textbf{Instructor:} Eng. Mohamed Khaled\\
+\textbf{Supervised by:} Dr. Mohamed Nafie, Dr. Mohamed Khairy
+
+\end{titlepage}
+
+% ==================================================
+% Front Matter
+% ==================================================
+\pagenumbering{roman}
+\tableofcontents
+\listoffigures
+\newpage
+\pagenumbering{arabic}
+
+% ==================================================
+% Executive Summary
+% ==================================================
+\chapter*{Executive Summary}
+\addcontentsline{toc}{chapter}{Executive Summary}
+
+This report investigates the effect of channel coding techniques on the bit error rate (BER) performance of digital communication systems operating over an additive white Gaussian noise (AWGN) channel. Different modulation schemes and coding strategies are evaluated to highlight the trade-offs between reliability, energy efficiency, and spectral efficiency.
+
+% ==================================================
+\chapter{Introduction}
+Channel coding is used to introduce controlled redundancy in transmitted data to combat the effect of noise and channel impairments. In this project, several channel coding techniques are analyzed and compared using BER as the main performance metric. All simulations are implemented using MATLAB.
+
+% ==================================================
+\chapter{Simulation Environment}
+All experiments are implemented using MATLAB and integrated into a unified graphical user interface (GUI). 
+The GUI allows the user to select any problem from Question 3 to Question 9, execute the corresponding simulation, 
+and automatically display numerical outputs and generated figures.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/GUI_Main_Window.png}
+\caption{Graphical User Interface used to execute channel coding experiments.}
+\end{figure}
+
+% ==================================================
+\chapter{Problem 3: Uncoded BPSK over AWGN}
+
+The theoretical BER of uncoded BPSK over an AWGN channel is given by:
+\[
+\text{BER}_{\text{BPSK}} = \frac{1}{2}\,\mathrm{erfc}\left(\sqrt{\frac{E_b}{N_0}}\right)
+\]
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/Q3_Uncoded_BPSK_AWGN.png}
+\caption{BER performance of uncoded BPSK over an AWGN channel.}
+\end{figure}
+
+\section*{Discussion}
+This experiment evaluates the BER performance of uncoded BPSK over an AWGN channel 
+for $E_b/N_0$ ranging from $-3$ to $10$ dB while transmitting 110000 information bits.
+The simulated BER closely matches the theoretical expression, confirming the validity 
+of the noise model and modulation process.
+
+As expected, increasing $E_b/N_0$ results in a significant reduction in BER due to lower noise variance.
+This experiment serves as a baseline reference for all subsequent coded systems.
+\textbf{This discussion answers Question 3.}
+
+\section*{MATLAB Code}
+\lstinputlisting[
+    caption={MATLAB implementation of uncoded BPSK over AWGN},
+    label={lst:Q3}
+]{code/Q3.txt}
+
+
+
+
+% ==================================================
+\chapter{Problem 4: Repetition-3 Coded BPSK (Hard Decision)}
+
+This experiment evaluates repetition-3 coding under two scenarios:
+\begin{itemize}
+\item Same energy per transmitted bit
+\item Same energy per information bit
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/Q4_BPSK_Repetition3_HardDecision.png}
+\caption{BER comparison of uncoded BPSK and repetition-3 coded BPSK using hard decision decoding.}
+\end{figure}
+
+\section*{Discussion}
+Repetition-3 coding with hard decision decoding is evaluated under two energy constraints.
+When the same energy per transmitted bit is used, the BER is significantly improved due to redundancy 
+and majority voting, at the cost of increased total transmitted energy.
+
+When the same energy per information bit is maintained, the BER improvement is reduced since the 
+energy is divided among repeated bits.
+Such schemes are suitable for power-limited systems with relaxed bandwidth constraints.
+\textbf{This discussion answers Question 4 (a) and (b).}
+
+
+
+\section*{MATLAB Code}
+\lstinputlisting[
+    caption={MATLAB implementation of repetition-3 coded BPSK (hard decision)},
+    label={lst:Q4}
+]{code/Q4.txt}
+
+% ==================================================
+\chapter{Problem 5: Repetition-3 Coded BPSK (Soft Decision)}
+
+Soft-decision decoding improves BER performance by utilizing amplitude information rather than binary decisions.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/Q5_BPSK_Repetition3_SoftDecision.png}
+\caption{BER performance of repetition-3 coded BPSK using soft decision decoding.}
+\end{figure}
+
+\section*{Discussion}
+Soft decision decoding further improves BER performance by exploiting received signal amplitudes 
+instead of binary decisions.
+Compared to hard decision decoding, a clear coding gain is observed, especially at low $E_b/N_0$.
+
+This approach is preferred in systems where receiver complexity is acceptable and higher reliability 
+is required, such as modern wireless and satellite communication systems.
+\textbf{This discussion answers Question 5.}
+
+
+\section*{MATLAB Code}
+\lstinputlisting[
+    caption={MATLAB implementation of repetition-3 coded BPSK (soft decision)},
+    label={lst:Q5}
+]{code/Q5.txt}
+
+% ==================================================
+\chapter{Problem 6: Hamming (7,4) Coded BPSK}
+
+The Hamming (7,4) code has a minimum distance of $d_{\min}=3$, allowing single-bit error correction.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/Q6_(7,4)_Hamming_code.png}
+\caption{BER comparison between uncoded BPSK and Hamming (7,4) coded BPSK.}
+\end{figure}
+
+\section*{Discussion}
+The Hamming (7,4) code introduces structured redundancy and enables single-bit error correction.
+The minimum distance of this code is $d_{\min}=3$, which allows correction of one error per codeword.
+
+The results show a noticeable BER improvement compared to uncoded BPSK when using the same energy per 
+information bit.
+This code is recommended when reducing BER is the primary objective and transmission time is not critical.
+\textbf{This discussion answers Question 6 (c) and (d).}
+
+
+\section*{MATLAB Code}
+\lstinputlisting[
+    caption={MATLAB implementation of Hamming (7,4) coded BPSK},
+    label={lst:Q6}
+]{code/Q6.txt}
+
+% ==================================================
+\chapter{Problem 7: Hamming (15,11) with BPSK and QPSK}
+
+QPSK achieves the same BER performance as BPSK while transmitting twice the number of bits per symbol.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/Q7_QPSK_BPSK_(15,11)_Hamming_code.png}
+\caption{BER comparison of Hamming (15,11) coded BPSK and QPSK.}
+\end{figure}
+
+\section*{Discussion}
+The Hamming (15,11) code provides higher code rate and improved BER performance compared to shorter Hamming codes.
+The results show that BPSK and QPSK achieve nearly identical BER performance under the same energy conditions.
+
+Since QPSK transmits two bits per symbol, it achieves the same BER with reduced transmission time.
+Therefore, QPSK with Hamming (15,11) coding is recommended for improved spectral efficiency.
+\textbf{This discussion answers Question 7 (e), (f), and (g).}
+
+
+\section*{MATLAB Code}
+\lstinputlisting[
+    caption={MATLAB implementation of Hamming (15,11) coded BPSK and QPSK},
+    label={lst:Q7}
+]{code/Q7.txt}
+
+% ==================================================
+\chapter{Problem 8: BCH-Coded 16-QAM vs Uncoded QPSK}
+
+This problem compares spectral efficiency and coding gain using BCH(255,131) with 16-QAM.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/Q8_QPSK_vs_16QAM_BCH.png}
+\caption{BER comparison between uncoded QPSK and BCH(255,131) coded 16-QAM.}
+\end{figure}
+
+\section*{Discussion}
+This experiment compares uncoded QPSK with BCH(255,131) coded 16-QAM for the transmission 
+of 26.2 million bits over an AWGN channel.
+Although 16-QAM is inherently more sensitive to noise, the strong BCH coding provides 
+significant coding gain.
+
+At moderate and high $E_b/N_0$, the coded 16-QAM system outperforms uncoded QPSK while 
+offering higher spectral efficiency.
+This makes it suitable for high-data-rate communication systems.
+\textbf{This discussion answers Question 8 (h) and (i).}
+
+
+\section*{MATLAB Code}
+\lstinputlisting[
+    caption={MATLAB implementation of QPSK vs BCH-coded 16-QAM},
+    label={lst:Q8}
+]{code/Q8.txt}
+
+% ==================================================
+\chapter{Problem 9: Convolutional Encoding}
+
+A convolutional encoder with rate $2/3$ is implemented, and the state transition table is visualized.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/Q9_Convolutional_Encoder_Table.png}
+\caption{Convolutional encoder state transition and output table.}
+\end{figure}
+
+\section*{Discussion}
+A convolutional encoder with rate $2/3$ is implemented using the specified generator sequences.
+The encoder state transitions and outputs are visualized in a table, illustrating the memory-based 
+nature of convolutional coding.
+
+Such encoders are widely used in practical communication systems due to their continuous encoding 
+structure and strong error-correcting capability when combined with optimal decoding algorithms.
+\textbf{This discussion answers Question 9.}
+
+
+\section*{MATLAB Code}
+\lstinputlisting[
+    caption={MATLAB implementation of convolutional encoder},
+    label={lst:Q9}
+]{code/Q9.txt}
+
+% ==================================================
+\chapter{Conclusion}
+
+Channel coding significantly enhances system reliability. Strong coding combined with higher-order modulation enables higher data rates without sacrificing BER performance. QPSK and BCH-coded 16-QAM demonstrate superior spectral efficiency compared to uncoded systems.
+
+% ==================================================
+\appendix
+\chapter{ GUI Implementation}
+
+\lstinputlisting[
+    caption={MATLAB GUI for Channel Coding Project},
+    label={lst:GUI}
+]{code/GUI.txt}
+
+% ==================================================
+\end{document}

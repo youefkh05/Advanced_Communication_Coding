@@ -6,7 +6,7 @@ function comm_project_gui
 
     % ================= HOME PAGE =================
     homeFig = uifigure( ...
-        'Name','Digital Communications Project', ...
+        'Name','Channel Coding Project', ...
         'Position',[500 200 420 500]);
 
     gl = uigridlayout(homeFig,[8 1]);
@@ -15,7 +15,7 @@ function comm_project_gui
 
     % Title
     uilabel(gl, ...
-        'Text','Digital Communications Project', ...
+        'Text','Channel Coding Project', ...
         'FontSize',18, ...
         'FontWeight','bold', ...
         'HorizontalAlignment','center');
@@ -110,6 +110,7 @@ function Q3
 % Uncoded BPSK over AWGN
 
     fprintf('Started Q3\n');
+    pause(3);
 
     %% ================= PARAMETERS ===============================
     EbN0_dB = -3:1:10;              % Eb/No range in dB
@@ -131,7 +132,7 @@ function Q3
     % --- Save figure ---
     save_figure_png(fig, ...
         'Q3_Uncoded_BPSK_AWGN', ...
-        'results/Q3');
+        'figures');
 end
 
 %====================== Q3 Helper functions =============================
@@ -290,6 +291,8 @@ end
 function Q4
 % BPSK with Repetition-3 Coding (Hard Decision)
     fprintf('Q4 Start\n');
+    pause(3);
+
 
     %% ================= PARAMETERS ===============================
     EbN0_dB = -3:1:10;
@@ -363,7 +366,7 @@ function Q4
     %% ===================== SAVE FIGURE ===========================
     save_figure_png(fig, ...
         'Q4_BPSK_Repetition3_HardDecision', ...
-        'results/Q4');
+        'figures');
 end
 %====================== Q4 Helper functions =============================
 %% Plot Q4
@@ -415,6 +418,8 @@ function Q5
 
     %% ================= PARAMETERS ===============================
     fprintf('Q5 Start\n');
+    pause(3);
+
     EbN0_dB = -3:1:10;
     EbN0_lin = 10.^(EbN0_dB/10);
     Eb = 1;
@@ -487,7 +492,7 @@ function Q5
     %% ===================== SAVE FIGURE ===========================
     save_figure_png(fig, ...
         'Q5_BPSK_Repetition3_SoftDecision', ...
-        'results/Q5');
+        'figures');
 end
 
 %====================== Q5 Helper functions =============================
@@ -546,6 +551,7 @@ function Q6
 
 fprintf('Q6: BPSK with (7,4) Hamming Coding\n');
 fprintf('---------------------------------\n');
+pause(3);
 
 %% ================= PARAMETERS ===============================
 EbN0_dB = -3:1:10;
@@ -644,8 +650,8 @@ annotation(fig,'textbox', ...
     'BackgroundColor','white');
  %% ===================== SAVE FIGURE ===========================
  save_figure_png(fig, ...
-        'Q6_(7,4)_Hamming code', ...
-        'results/Q6');
+        'Q6_(7,4)_Hamming_code', ...
+        'figures');
 
 %% ================= REPORT ANSWERS =================
 fprintf('(c) Minimum distance of (7,4) Hamming code: d_min = 3\n');
@@ -663,6 +669,7 @@ function Q7
 
 fprintf('Q7: Hamming (15,11) with BPSK and QPSK\n');
 fprintf('-------------------------------------\n');
+pause(3);
 
 %% ================= PARAMETERS ===============================
 EbN0_dB = -3:1:10;
@@ -794,7 +801,7 @@ annotation(fig,'textbox', ...
  %% ===================== SAVE FIGURE ===========================
  save_figure_png(fig, ...
         'Q7_QPSK_BPSK_(15,11)_Hamming code', ...
-        'results/Q7');
+        'figures');
 
 %% ================= REPORT ANSWER (7.1.e) ====================
 fprintf('(e) Recommendation:\n');
@@ -812,6 +819,7 @@ function Q8
 
 fprintf('Q8: QPSK vs 16-QAM + BCH(255,131)\n');
 fprintf('---------------------------------\n');
+pause(3);
 
 %% ================= PARAMETERS ===============================
 EbN0_dB = 5:15;
@@ -923,7 +931,7 @@ annotation(fig,'textbox', ...
     'FitBoxToText','on', ...
     'BackgroundColor','white');
 
-save_figure_png(fig,'Q8_QPSK_vs_16QAM_BCH','results/Q8');
+save_figure_png(fig,'Q8_QPSK_vs_16QAM_BCH','figures');
 end
 
 %====================== Q8 Helper functions =============================
@@ -991,6 +999,7 @@ function Q9
 
 fprintf('Q9: Convolutional Encoding (2,3,K)\n');
 fprintf('----------------------------------\n');
+pause(3);
 
 %% ================= PARAMETERS ===============================
 N_bits = 1000;
@@ -1064,7 +1073,7 @@ uitable(fig, ...
 %% ================= OPTIONAL: SAVE FIGURE =====================
 save_figure_png(fig, ...
     'Q9_Convolutional_Encoder_Table', ...
-    'results/Q9');
+    'figures');
 
 
 %% ================= SUMMARY ================================
