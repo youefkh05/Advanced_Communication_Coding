@@ -6,7 +6,6 @@ Eb = 1;
 EbN0_dB = 0:2:20;
 EbN0_lin = 10.^(EbN0_dB/10);
 No = Eb ./ EbN0_lin;                 % noise spectral density
-std_noise = sqrt(No./(2*Nfft));      % OFDM noise normalization
 
 mods = {'BPSK','QPSK','16QAM'};
 R = 5;                     % repetition factor
@@ -90,9 +89,11 @@ for m = 1:length(mods)
  
             
             %% ========== AWGN ==========
-            noise_unc = std_noise(snr) * (randn(size(y_unc_flat)) + 1j*randn(size(y_unc_flat)));
-            noise_rep = std_noise(snr) * (randn(size(y_rep_flat)) + 1j*randn(size(y_rep_flat)));
-            
+            sigma = sqrt(Eb ./ (2*EbN0_lin(snr)));
+
+            noise_unc = sigma * (randn(size(y_unc_flat)) + 1j*randn(size(y_unc_flat)));
+            noise_rep = sigma * (randn(size(y_rep_flat)) + 1j*randn(size(y_rep_flat)));
+
             y_unc_flat = y_unc_flat + noise_unc;
             y_rep_flat = y_rep_flat + noise_rep;
 
@@ -102,9 +103,11 @@ for m = 1:length(mods)
             y_rep_sel = ifft(X_rep .* H);
             
             %% ========== AWGN ==========
-            noise_unc = std_noise(snr) * (randn(size(y_unc_sel)) + 1j*randn(size(y_unc_sel)));
-            noise_rep = std_noise(snr) * (randn(size(y_rep_sel)) + 1j*randn(size(y_rep_sel)));
-            
+            sigma = sqrt(Eb ./ (2*EbN0_lin(snr)));
+
+            noise_unc = sigma * (randn(size(y_unc_sel)) + 1j*randn(size(y_unc_sel)));
+            noise_rep = sigma * (randn(size(y_rep_sel)) + 1j*randn(size(y_rep_sel)));
+  
             y_unc_sel = y_unc_sel + noise_unc;
             y_rep_sel = y_rep_sel + noise_rep;
 
