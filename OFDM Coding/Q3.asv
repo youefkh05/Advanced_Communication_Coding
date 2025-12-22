@@ -5,25 +5,42 @@ Nfft = 256;
 Eb = 1;
 EbN0_dB = 0:2:20;
 EbN0_lin = 10.^(EbN0_dB/10);
+No = Eb ./ EbN0_lin;                 % noise spectral density
+std_noise = sqrt(No./(2*Nfft));      % OFDM noise normalization
 
 mods = {'BPSK','QPSK','16QAM'};
 R = 5;                     % repetition factor
 Nsym = 150;                % OFDM symbols per SNR (runtime safe)
 
+% Two Channels
+h_flat = (randn + 1j*randn)/sqrt(2);
+H = (randn(Nfft,1) + 1j*randn(Nfft,1)) / sqrt(2);
+
 %% ================= LOOP OVER MODULATIONS =================
 for m = 1:length(mods)
 
-    modType = mods{m};
+    modType = mods{m};    
 
+    %% ===== OFDM FRAME DEFINITION =====
     switch modType
         case 'BPSK'
-            k = 1;
+            rows = 32; cols = 8;   bits_ps = 1;
         case 'QPSK'
-            k = 2;
+            rows = 32; cols = 16;  bits_ps = 2;
         case '16QAM'
-            k = 4;
+            rows = 32; cols = 32;  bits_ps = 4;
     end
     
+    bits_per_symbol = rows * cols;   % mapper input size
+    
+    % ---- Uncoded system ----
+    bits_uncoded = bits_per_symbol;  % full OFDM payload
+    
+    % ---- Repetition-coded system ----
+    bits_info_rep = floor(bits_per_symbol / R);  % information bits
+    bits_coded    = bits_info_rep * R;            % after repetition
+
+
 
 
     BER_flat_unc = zeros(size(EbN0_dB));
@@ -40,61 +57,79 @@ for m = 1:length(mods)
         for sym = 1:Nsym
 
             %% ========== PART 1: CODING ==========
-            [info_unc, info_rep, coded_rep, pad_unc, pad_rep] = ofdm_coding(modType,Nfft,R);
 
-
-            %% ========== PART 2: INTERLEAVER ==========
-            info_unc_i  = ofdm_interleave(info_unc, modType);
-            coded_rep_i = ofdm_interleave(coded_rep, modType);
+            % ---- Uncoded ----
+            info_unc = randi([0 1], bits_uncoded, 1);
             
-            info_unc_i  = [info_unc_i;  zeros(pad_unc,1)];
-            coded_rep_i = [coded_rep_i; zeros(pad_rep,1)];
-
+            % ---- Repetition coded ----
+            info_rep  = randi([0 1], bits_info_rep, 1);
+            coded_rep = repelem(info_rep, R);
+            
+            % ---- Padding to OFDM size ----
+            info_unc_p  = info_unc;  % already bits_per_symbol
+            coded_rep_p = [coded_rep; zeros(bits_per_symbol - length(coded_rep),1)];
+                        
+            %% ========== PART 2: INTERLEAVER ==========
+            info_unc_i  = ofdm_interleave(info_unc_p,  modType);
+            coded_rep_i = ofdm_interleave(coded_rep_p, modType);
 
             %% ========== PART 3: MAPPER ==========
-            X_unc = ofdm_mapper(info_unc_i, modType);
-            X_rep = ofdm_mapper(coded_rep_i, modType);
+            X_unc = ofdm_mapper(info_unc_i, modType, Eb);
+            X_rep = ofdm_mapper(coded_rep_i, modType, Eb);
 
-            %% ========== PART 4: IFFT ==========
-            x_unc = ifft(X_unc,Nfft);
-            x_rep = ifft(X_rep,Nfft);
 
-            %% ========== PART 5a: FLAT FADING ==========
-            h_flat = (randn + 1j*randn)/sqrt(2);
+            %% ========== PART 4a: IFFT ==========
+            x_unc = ifft(X_unc);
+            x_rep = ifft(X_rep);
             
-            y_unc = h_flat * x_unc + awgn_noise(x_unc,Eb,EbN0_lin(snr));
-            y_rep = h_flat * x_rep + awgn_noise(x_rep,Eb,EbN0_lin(snr));
+            %% ========== PART 5a: FLAT FADING ==========
+            y_unc = h_flat * x_unc;
+            y_rep = h_flat * x_rep;
+            % ----- FLAT -----
+y_unc_flat = h_flat * x_unc;
+y_rep_flat = h_flat * x_rep;
+
+y_unc_flat = y_unc_flat + noise_unc;
+y_rep_flat = y_rep_flat + noise_rep;
+
+% ----- SELECTIVE -----
+y_unc_sel = ifft(X_unc .* H);
+y_rep_sel = ifft(X_rep .* H);
+
+y_unc_sel = y_unc_sel + noise_unc;
+y_rep_sel = y_rep_sel + noise_rep;
+
+            
+            %% ========== AWGN ==========
+            noise_unc = std_noise(snr) * (randn(size(y_unc)) + 1j*randn(size(y_unc)));
+            noise_rep = std_noise(snr) * (randn(size(y_rep)) + 1j*randn(size(y_rep)));
+            
+            y_unc = y_unc + noise_unc;
+            y_rep = y_rep + noise_rep;
+
+            %% ========== PART 5b: FREQUENCY SELECTIVE ==========
+            y_unc = ifft(X_unc .* H);
+            y_rep = ifft(X_rep .* H);
+            
+            %% ========== AWGN ==========
+            noise_unc = std_noise(snr) * (randn(size(y_unc)) + 1j*randn(size(y_unc)));
+            noise_rep = std_noise(snr) * (randn(size(y_rep)) + 1j*randn(size(y_rep)));
+            
+            y_unc = y_unc + noise_unc;
+            y_rep = y_rep + noise_rep;
 
 
             %% ========== PART 6: RECEIVER (FLAT) ==========
-            err_fu = err_fu + ofdm_receiver( ...
-                y_unc, h_flat, info_unc, length(info_unc), modType, false, R);
+            err_fu = err_fu + ofdm_receiver(y_unc, h_flat, info_unc, modType, false, R);
+            err_fc = err_fc + ofdm_receiver(y_rep, h_flat, info_unc, modType, true,  R);
 
-            err_fc = err_fc + ofdm_receiver( ...
-                y_rep, h_flat, info_rep, length(coded_rep), modType, true, R);
-
+            %% ========== PART 6: RECEIVER (SELECTIVE) ==========
+            err_su = err_su + ofdm_receiver(y_unc, H, info_unc, modType, false, R);
+            err_sc = err_sc + ofdm_receiver(y_rep, H, info_unc, modType, true,  R);
+            
             bits_unc_cnt = bits_unc_cnt + length(info_unc);
             bits_rep_cnt = bits_rep_cnt + length(info_rep);
 
-            %% ========== PART 5b: FREQUENCY SELECTIVE ==========
-            H = (randn(Nfft,1)+1j*randn(Nfft,1))/sqrt(2);
-
-            Y_unc = H .* X_unc;
-            Y_rep = H .* X_rep;
-
-            y_unc = ifft(Y_unc,Nfft);
-            y_unc = y_unc + awgn_noise(y_unc,Eb,EbN0_lin(snr));
-            
-            y_rep = ifft(Y_rep,Nfft);
-            y_rep = y_rep + awgn_noise(y_rep,Eb,EbN0_lin(snr));
-
-
-            %% ========== PART 6: RECEIVER (SELECTIVE) ==========
-            err_su = err_su + ofdm_receiver( ...
-                y_unc, H, info_unc, length(info_unc), modType, false, R);
-
-            err_sc = err_sc + ofdm_receiver( ...
-                y_rep, H, info_rep, length(coded_rep), modType, true, R);
         end
 
         BER_flat_unc(snr) = err_fu / bits_unc_cnt;
@@ -133,78 +168,108 @@ function [info_unc, info_rep, coded_rep, pad_unc, pad_rep] = ofdm_coding(modType
 end
 
 %% InterLeaver
-function out = ofdm_interleave(bits,modType)
-    if strcmp(modType,'QPSK')
-        out = reshape(bits,32,16).';
-        out = out(:);
-    elseif strcmp(modType,'16QAM')
-        out = reshape(bits,32,32).';
-        out = out(:);
-    else
-        out = bits;
+function out = ofdm_interleave(bits, modType)
+
+    switch modType
+        case 'QPSK'
+            assert(length(bits)==512, 'QPSK interleaver requires 512 bits');
+            out = reshape(bits,32,16).';
+            out = out(:);
+
+        case '16QAM'
+            assert(length(bits)==1024,'16QAM interleaver requires 1024 bits');
+            out = reshape(bits,32,32).';
+            out = out(:);
+
+        otherwise  % BPSK
+            out = bits;
     end
 end
 
-%% Mapper
-function X = ofdm_mapper(bits,modType)
+%% Mapper 
+function X = ofdm_mapper(bits, modType, Eb)
+
     switch modType
+
         case 'BPSK'
-            X = 2*bits-1;
+            % Average symbol energy = Eb
+            X = sqrt(Eb) * (2*bits - 1);
+
         case 'QPSK'
+            % Average symbol energy = 2Eb → scaled to Eb
             b = reshape(bits,2,[]).';
-            X = (2*b(:,1)-1)+1j*(2*b(:,2)-1);
+            X = sqrt(Eb) * ( ...
+                (2*b(:,1)-1) + 1j*(2*b(:,2)-1) );
+
         case '16QAM'
+            % Average symbol energy = 10 → normalized by 2.5
             b = reshape(bits,4,[]).';
             I = (2*b(:,1)-1).*(2-(2*b(:,3)));
             Q = (2*b(:,2)-1).*(2-(2*b(:,4)));
-            X = (I+1j*Q)/sqrt(10);
+            X = sqrt(Eb/2.5) * (I + 1j*Q);
+
     end
 end
 
 %% Recevier
-function err = ofdm_receiver(y,h,info_bits,Ncoded,modType,isRep, R)
+function err = ofdm_receiver(y, h, info_bits, modType, isRep, R)
 
-    Y = fft(y,length(y));
+    %% FFT
+    Y = fft(y);
 
-    if numel(h)>1
-        Xeq = Y ./ (h + 1e-12); %safety
-    else
-        Xeq = Y/h;
+    %% Equalization
+    if numel(h) > 1        % frequency selective
+        Yeq = Y ./ (h + 1e-12);
+    else                  % flat fading
+        Yeq = Y / h;
     end
 
+    %% Demapper
     switch modType
         case 'BPSK'
-            bh = real(Xeq)>0;
+            rx_bits = real(Yeq) > 0;
+
         case 'QPSK'
-            bh = reshape([real(Xeq)>0 imag(Xeq)>0].',[],1);
+            rx_bits = reshape([real(Yeq)>0 imag(Yeq)>0].',1,[]);
+
         case '16QAM'
-            bh = reshape([ ...
-                real(Xeq)>0, imag(Xeq)>0, ...
-                abs(real(Xeq))<2, abs(imag(Xeq))<2].',[],1);
+            rx_bits = reshape([ ...
+                real(Yeq)>0 imag(Yeq)>0 ...
+                abs(real(Yeq))<2 abs(imag(Yeq))<2].',1,[]);
     end
 
+    %% De-interleaver
+    switch modType
+        case 'QPSK'
+            rx_bits = reshape(rx_bits,16,32).';
+            rx_bits = rx_bits(:).';
+
+        case '16QAM'
+            rx_bits = reshape(rx_bits,32,32).';
+            rx_bits = rx_bits(:).';
+    end
+
+    %% Decode (Repetition)
     if isRep
-        Nrep = floor(length(bh)/R)*R;   % safe length
-        bh = bh(1:Nrep);
-        bh = reshape(bh,R,[]);
-        bh = sum(bh,1) >= ceil(R/2);
-        bh = bh(:);
+        dec = zeros(1,length(info_bits));
+        for k = 1:length(info_bits)
+            dec(k) = sum(rx_bits((k-1)*R+1:k*R)) > R/2;
+        end
+        rx_bits = dec;
+    else
+        rx_bits = rx_bits(1:length(info_bits));
     end
-    
-    bh = bh(1:length(info_bits));   % compare ONLY info bits
 
-
-    err = sum(bh ~= info_bits);
+    %% Error count
+    err = sum(rx_bits ~= info_bits);
 end
 
 %% Noise
-function n = awgn_noise(x,Eb,EbN0)
-    N0 = Eb/EbN0;
-       k = bits_per_symbol;
+function n = awgn_noise(x, Eb, EbN0)
     N0 = Eb / EbN0;
-    n = sqrt((N0*k)/2)*(randn + 1j*randn);
-
+    n  = sqrt(N0/2) * (randn(size(x)) + 1j*randn(size(x)));
 end
+
 
 %% Plot
 function fig = plot_ofdm(EbN0_dB,fU,fC,sU,sC,modType)
@@ -218,4 +283,36 @@ function fig = plot_ofdm(EbN0_dB,fU,fC,sU,sC,modType)
     xlabel('E_b/N_0 (dB)');
     ylabel('BER');
     title(['OFDM ' modType ' over Flat & Frequency Selective Fading']);
+end
+
+%%  Save Figure
+function save_figure_png(figHandle, figName, savePath)
+% SAVE_FIGURE_PNG
+% Saves a MATLAB figure as PNG with proper formatting
+%
+% Inputs:
+%   figHandle : handle to figure
+%   figName   : string (figure title & filename)
+%   savePath  : string (directory path)
+
+    % --- Input checks ---
+    if ~isvalid(figHandle)
+        error('Invalid figure handle.');
+    end
+
+    if ~isfolder(savePath)
+        mkdir(savePath);
+    end
+
+    % --- Set figure properties ---
+    figHandle.Name = figName;
+    figHandle.NumberTitle = 'off';
+
+    % --- Build full file path ---
+    fileName = fullfile(savePath, [figName '.png']);
+
+    % --- Save figure ---
+    exportgraphics(figHandle, fileName, 'Resolution', 300);
+
+    fprintf('Figure saved successfully:\n%s\n', fileName);
 end
