@@ -236,23 +236,33 @@ This code is recommended when reducing BER is the primary objective and transmis
 ]{code/Q6.txt}
 
 % ==================================================
+% ==================================================
 \chapter{Problem 7: Hamming (15,11) with BPSK and QPSK}
 
-QPSK achieves the same BER performance as BPSK while transmitting twice the number of bits per symbol.
+In this problem, the performance of a Hamming $(15,11)$ coded system is evaluated using both BPSK and QPSK modulation schemes. The objective is to study the impact of modulation choice on bit error rate (BER) performance and transmission time under the same energy constraints.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/Q7_QPSK_BPSK_(15,11)_Hamming_code.png}
-\caption{BER comparison of Hamming (15,11) coded BPSK and QPSK.}
+\includegraphics[width=0.85\textwidth]{figures/Q7_QPSK_BPSK_(15,11)_Hamming code.png}
+\caption{BER performance comparison between uncoded BPSK and the proposed QPSK with Hamming (15,11) coding.}
 \end{figure}
 
 \section*{Discussion}
-The Hamming (15,11) code provides higher code rate and improved BER performance compared to shorter Hamming codes.
-The results show that BPSK and QPSK achieve nearly identical BER performance under the same energy conditions.
 
-Since QPSK transmits two bits per symbol, it achieves the same BER with reduced transmission time.
-Therefore, QPSK with Hamming (15,11) coding is recommended for improved spectral efficiency.
-\textbf{This discussion answers Question 7 (e), (f), and (g).}
+The Hamming $(15,11)$ code has a higher code rate compared to the $(7,4)$ Hamming code, which results in reduced redundancy and improved spectral efficiency. When combined with BPSK modulation, the coded system achieves a noticeable BER improvement compared to uncoded transmission.
+
+However, the use of channel coding increases the number of transmitted bits, which in turn increases the transmission time when using BPSK modulation. To address this issue, QPSK modulation is proposed as an alternative.
+
+\textbf{Answer to Question 7(e):}  
+The use of a Hamming $(15,11)$ code is recommended for reducing the bit error rate when transmission time is not a critical constraint, as it provides effective error correction with moderate redundancy.
+
+\textbf{Answer to Question 7(f):}  
+To keep the transmission time equal to or less than that of uncoded BPSK (Problem 3), QPSK modulation is proposed in combination with the Hamming $(15,11)$ code. Since QPSK transmits two bits per symbol, it compensates for the redundancy introduced by channel coding and maintains the overall transmission time.
+
+\textbf{Answer to Question 7(g):}  
+The plotted BER curve of the proposed scheme (QPSK with Hamming $(15,11)$ coding) demonstrates that it achieves nearly the same BER performance as coded BPSK while maintaining equal or shorter transmission time. This confirms that the proposed scheme provides improved reliability without sacrificing transmission efficiency.
+
+\textbf{This discussion fully answers Question 7 (e), (f), and (g).}
 
 
 \section*{MATLAB Code}
