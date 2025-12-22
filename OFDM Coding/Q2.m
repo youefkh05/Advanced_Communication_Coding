@@ -155,8 +155,6 @@ end
 
 %% ===================== FIGURES =====================
 
-%% ===================== FIGURES =====================
-
 % ---- BPSK ----
 fig = plot_rayleigh(EbN0_dB, BER_BPSK_unc, BER_BPSK_rep, Nbits, 'BPSK');
 save_figure_png(fig, ...
