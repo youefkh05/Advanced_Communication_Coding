@@ -20,6 +20,7 @@ save_figure_png(fig1, 'Q1_DFT_vs_FFT_Execution_Time', 'figures');
 
 
 %% ========================= Functions ========================
+%% My DFT Function
 function X = myDFT(x)
 N = length(x);
 X = zeros(1,N);
@@ -33,6 +34,7 @@ for k = 0:N-1
 end
 end
 
+%% Bar Chart
 function fig = plot_dft_fft_time(t_dft, t_fft)
 % PLOT_DFT_FFT_TIME
 % Plots execution time comparison between DFT and FFT

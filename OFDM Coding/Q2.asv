@@ -1,0 +1,130 @@
+clear;
+clc;
+close all;
+
+%% ================= PARAMETERS =================
+Nbits = 1e5;
+Eb = 1;
+EbN0_dB = -3:1:10;
+EbN0_lin = 10.^(EbN0_dB/10);
+
+BER = zeros(size(EbN0_dB));
+
+%% ================= MAIN Eb/N0 LOOP =================
+for idx = 1:length(EbN0_dB)
+
+    % (a) Random bits
+    bk = randi([0 1], Nbits, 1);
+
+    % (b) BPSK modulation
+    xk = sqrt(Eb) * (2*bk - 1);
+
+    % (c) Rayleigh flat fading channel
+    hr = sqrt(1/2) * randn(Nbits,1);
+    hi = sqrt(1/2) * randn(Nbits,1);
+    h  = hr + 1j*hi;
+
+    % Noise generation
+    N0 = Eb / EbN0_lin(idx);
+    nc = sqrt(N0/2) * randn(Nbits,1);
+    ns = sqrt(N0/2) * randn(Nbits,1);
+    n  = nc + 1j*ns;
+
+    % (d) Received signal
+    yk = h .* xk + n;
+
+    % (e) Channel compensation & hard decision
+    y_eq = yk ./ h;
+    bk_hat = real(y_eq) > 0;
+
+    % (f) BER computation
+    BER(idx) = mean(bk_hat ~= bk);
+
+end
+
+% part h plot
+fig = plot_q2_bpsk_rayleigh(EbN0_dB, BER, Nbits);
+
+save_figure_png(fig, ...
+    'Q2_BPSK_Rayleigh_Flat', ...
+    'figures');
+
+pause(3);
+
+
+%% ========================= Functions ========================
+%% Plot BER
+function fig = plot_q2_bpsk_rayleigh(EbN0_dB, BER, Nbits)
+% PLOT_Q2_BPSK_RAYLEIGH
+% Plots BER performance of BPSK over Rayleigh flat fading channel
+
+    fig = figure;
+
+    semilogy(EbN0_dB, BER, ...
+        'ro--', ...
+        'LineWidth', 1.8, ...
+        'MarkerSize', 7);
+
+    grid on;
+    grid minor;
+
+    xlabel('E_b / N_0 (dB)', ...
+        'FontSize', 12, ...
+        'FontWeight', 'bold');
+
+    ylabel('Bit Error Rate (BER)', ...
+        'FontSize', 12, ...
+        'FontWeight', 'bold');
+
+    title('BPSK over Rayleigh Flat Fading Channel', ...
+        'FontSize', 14, ...
+        'FontWeight', 'bold');
+
+    set(gca, 'FontSize', 11);فشسن
+    set(gca, 'YScale', 'log');   % explicit log scale (TA-safe)
+
+    % Info box
+    annotation(fig,'textbox', ...
+        [0.15 0.18 0.35 0.18], ...
+        'String',{ ...
+            'Modulation: BPSK', ...
+            'Channel: Rayleigh Flat Fading', ...
+            sprintf('# bits: %d', Nbits)}, ...
+        'FitBoxToText','on', ...
+        'BackgroundColor','white', ...
+        'EdgeColor','black', ...
+        'FontSize',10);
+end
+
+
+%%  Save Figure
+function save_figure_png(figHandle, figName, savePath)
+% SAVE_FIGURE_PNG
+% Saves a MATLAB figure as PNG with proper formatting
+%
+% Inputs:
+%   figHandle : handle to figure
+%   figName   : string (figure title & filename)
+%   savePath  : string (directory path)
+
+    % --- Input checks ---
+    if ~isvalid(figHandle)
+        error('Invalid figure handle.');
+    end
+
+    if ~isfolder(savePath)
+        mkdir(savePath);
+    end
+
+    % --- Set figure properties ---
+    figHandle.Name = figName;
+    figHandle.NumberTitle = 'off';
+
+    % --- Build full file path ---
+    fileName = fullfile(savePath, [figName '.png']);
+
+    % --- Save figure ---
+    exportgraphics(figHandle, fileName, 'Resolution', 300);
+
+    fprintf('Figure saved successfully:\n%s\n', fileName);
+end

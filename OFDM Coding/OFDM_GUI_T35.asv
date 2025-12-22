@@ -32,6 +32,8 @@ end
 % ===============================================================
 function open_question(qnum, homeFig)
 
+    homeFig.Visible = 'off';
+
     qFig = uifigure( ...
         'Name', sprintf('Question %d', qnum), ...
         'Position',[400 150 900 550]);
@@ -75,7 +77,7 @@ function open_question(qnum, homeFig)
 
     catch ME
         logBox.Value = { ...
-            ' Error occurred:', ...
+            '❌ Error occurred:', ...
             ME.message ...
         };
         uialert(qFig, ME.message, 'Execution Error');
@@ -97,65 +99,78 @@ end
 % ===============================================================
 % ====================== QUESTION 1 =============================
 % ===============================================================
+
 function Q1
-    L = 4096;
-    x = randn(1,L);
-    
-    tic
-    X_dft = myDFT(x);
-    t_dft = toc;
-    
-    tic
-    X_fft = fft(x);
-    t_fft = toc;
-    
-    fprintf('Elapsed time is %s seconds.', num2str(t_dft));
-    fprintf('Elapsed time is %s seconds.', num2str(t_fft));
-    
-    fig1 = plot_dft_fft_time(t_dft, t_fft);
-    save_figure_png(fig1, 'Q1_DFT_vs_FFT_Execution_Time', 'figures');
+L = 4096;
+x = randn(1,L);
+
+tic
+X_dft = myDFT(x);
+t_dft = toc;
+
+tic
+X_fft = fft(x);
+t_fft = toc;
+
+disp(['Elapsed time is ', num2str(t_dft), ' seconds.']);
+disp(['Elapsed time is ', num2str(t_fft), ' seconds.']);
+
+fig1 = plot_dft_fft_time(t_dft, t_fft);
+save_figure_png(fig1, 'Q1_DFT_vs_FFT_Execution_Time', 'figures');
 end
 %====================== Q1 Helper functions =============================
 
-%% My DFT Function
-function X = myDFT(x)
-N = length(x);
-X = zeros(1,N);
+%%  BPSK
+function [BER_theory, BER_sim] = bpsk_uncoded_ber(EbN0_dB, Nbits, Eb)
+% BPSK_UNCODED_BER
+% Computes theoretical and simulated BER for uncoded BPSK over AWGN
+%
+% Inputs:
+%   EbN0_dB : Eb/N0 values in dB (vector)
+%   Nbits   : Number of bits
+%   Eb      : Energy per bit
+%
+% Outputs:
+%   BER_theory : Theoretical BER
+%   BER_sim    : Simulated BER
 
-for k = 0:N-1
-    sumVal = 0;
-    for n = 0:N-1
-        sumVal = sumVal + x(n+1)*exp(-1j*2*pi*n*k/N);
+    % === Convert Eb/N0 to linear scale ===
+    EbN0_lin = 10.^(EbN0_dB/10);
+
+    % === BPSK amplitude ===
+    A = sqrt(Eb);
+
+    % === THEORETICAL BER ===
+    BER_theory = 0.5 * erfc(sqrt(EbN0_lin));
+
+    % === MONTE-CARLO SIMULATION ===
+    BER_sim = zeros(size(EbN0_dB));
+
+    % Generate random bits
+    tx_bits = randi([0 1], Nbits, 1);
+
+    % BPSK modulation: 0 → -A, 1 → +A
+    tx_symbols = A * (2*tx_bits - 1);
+
+    % Loop over Eb/N0 values
+    for k = 1:length(EbN0_dB)
+
+        % Noise standard deviation
+        sigma = sqrt((Eb/2) / EbN0_lin(k));
+
+        % AWGN noise
+        noise = sigma * randn(Nbits,1);
+
+        % Received signal
+        rx_symbols = tx_symbols + noise;
+
+        % Hard decision detection
+        rx_bits = rx_symbols > 0;
+
+        % BER computation
+        BER_sim(k) = mean(rx_bits ~= tx_bits);
     end
-    X(k+1) = sumVal;
 end
-end
-
-%% Bar Chart
-function fig = plot_dft_fft_time(t_dft, t_fft)
-% PLOT_DFT_FFT_TIME
-% Plots execution time comparison between DFT and FFT
-
-    times = [t_dft t_fft];
-
-    fig = figure;
-    b = bar(times);
-    grid on;
-
-    set(gca, 'XTickLabel', {'DFT', 'FFT'});
-    ylabel('Execution Time (seconds)');
-    title('Execution Time Comparison: DFT vs FFT');
-
-    % Display values above bars
-    for i = 1:length(times)
-        text(i, times(i), sprintf('%.6f', times(i)), ...
-            'HorizontalAlignment', 'center', ...
-            'VerticalAlignment', 'bottom');
-    end
-
-end
-
-
 %%  Save Figure
 function save_figure_png(figHandle, figName, savePath)
 % SAVE_FIGURE_PNG
@@ -186,6 +201,69 @@ function save_figure_png(figHandle, figName, savePath)
     exportgraphics(figHandle, fileName, 'Resolution', 300);
 
     fprintf('Figure saved successfully:\n%s\n', fileName);
+end
+%% Plot BPSK
+function fig = plot_bpsk_ber(EbN0_dB, BER_theory, BER_sim, Nbits)
+% PLOT_BPSK_BER
+% Plots theoretical and simulated BER for uncoded BPSK over AWGN
+%
+% Inputs:
+%   EbN0_dB     : Eb/N0 values in dB
+%   BER_theory : theoretical BER
+%   BER_sim    : simulated BER
+%   Nbits      : number of simulated bits
+%
+% Output:
+%   fig        : figure handle
+
+    fig = figure;
+
+    % --- Theoretical BER ---
+    semilogy(EbN0_dB, BER_theory, ...
+        'b-', 'LineWidth', 2);
+    hold on;
+
+    % --- Simulated BER ---
+    semilogy(EbN0_dB, BER_sim, ...
+        'ro--', ...
+        'MarkerSize', 7, ...
+        'LineWidth', 1.5);
+
+    grid on;
+    grid minor;
+
+    xlabel('E_b/N_0 (dB)', ...
+        'FontSize', 12, ...
+        'FontWeight','bold');
+
+    ylabel('Bit Error Rate (BER)', ...
+        'FontSize', 12, ...
+        'FontWeight','bold');
+
+    title('Figure 1: Uncoded BPSK over AWGN', ...
+        'FontSize', 14, ...
+        'FontWeight','bold');
+
+    legend('Theoretical BER', 'Simulated BER', ...
+        'Location','southwest');
+
+    ylim([1e-5 1]);
+    set(gca, 'FontSize', 11);
+
+    % ================= TEXT BOX ON FIGURE =================
+    infoStr = { ...
+        'Modulation: BPSK', ...
+        'Channel: AWGN', ...
+        sprintf('Monte-Carlo bits: %d', Nbits) ...
+    };
+
+    annotation(fig, 'textbox', ...
+        [0.15 0.18 0.3 0.15], ... % position [x y w h]
+        'String', infoStr, ...
+        'FitBoxToText','on', ...
+        'BackgroundColor','white', ...
+        'EdgeColor','black', ...
+        'FontSize',10);
 end
 
 
